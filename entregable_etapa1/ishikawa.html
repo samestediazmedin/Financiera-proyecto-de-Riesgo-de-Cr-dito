@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagrama de Ishikawa — Riesgo de Incumplimiento de Crédito</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; color: #0f172a; }
+  .toolbar { max-width: 1500px; margin: 0 auto 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .toolbar h1 { font-size: 20px; margin: 0; color: #0f172a; }
+  .toolbar p { margin: 2px 0 0; color: #64748b; font-size: 13px; }
+  button { background: #059669; color: #fff; border: 0; padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  button:hover { background: #047857; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(15,23,42,.08); padding: 16px; max-width: 1500px; margin: 0 auto; }
+  svg { width: 100%; height: auto; display: block; }
+  .footer-note { max-width: 1500px; margin: 12px auto 0; font-size: 12px; color: #64748b; text-align: center; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .toolbar button { display: none; }
+    .card { box-shadow: none; border-radius: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <div>
+      <h1>🐟 Diagrama de Ishikawa — Riesgo de Incumplimiento de Crédito</h1>
+      <p>Grupo Estoicos · Entidad financiera, proyecto de Riesgo de Crédito · Business Analytics &amp; Big Data II</p>
+    </div>
+    <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+  <div class="card">
+    <svg id="ishikawa" viewBox="0 0 1500 920" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <p class="footer-note">Las causas son hipótesis iniciales del grupo; se validarán con datos en la siguiente etapa (Business Analytics).</p>
+
+<script>
+const problema = "Dificultad para identificar y evaluar oportunamente el riesgo de incumplimiento de las solicitudes de crédito";
+
+const categorias = [
+  { nombre: "PERSONAS", lado: "top", causas: [
+    "Criterios diferentes entre analistas",
+    "Experiencia variable de los evaluadores",
+    "Errores humanos en la evaluación",
+    "Dificultad para interpretar múltiples características"
+  ]},
+  { nombre: "PROCESOS", lado: "top", causas: [
+    "Criterios que no consideran todas las características",
+    "Proceso complejo con gran volumen de solicitudes",
+    "Falta de estandarización de perfiles de riesgo",
+    "Comparación difícil entre solicitudes distintas"
+  ]},
+  { nombre: "TECNOLOGÍA", lado: "top", causas: [
+    "Herramientas insuficientes para grandes volúmenes",
+    "Patrones difíciles de detectar con muchas variables",
+    "Dependencia excesiva de revisión manual"
+  ]},
+  { nombre: "PRODUCTO / SERVICIO", lado: "bottom", causas: [
+    "Montos de crédito diferentes",
+    "Plazos de crédito diferentes",
+    "Niveles de endeudamiento distintos",
+    "Características del crédito que elevan el riesgo"
+  ]},
+  { nombre: "INFORMACIÓN / DATOS", lado: "bottom", causas: [
+    "Historial crediticio desfavorable",
+    "Nivel de deuda elevado",
+    "Ingresos insuficientes frente al monto",
+    "Patrones difíciles de identificar manualmente",
+    "Diferencias entre solicitantes"
+  ]},
+  { nombre: "ENTORNO", lado: "bottom", causas: [
+    "Cambios en las condiciones económicas",
+    "Variaciones en la estabilidad laboral",
+    "Cambios en la capacidad de pago",
+    "Condiciones externas que afectan el cumplimiento"
+  ]}
+];
+
+const colores = {
+  "PERSONAS": "#e11d48",
+  "PROCESOS": "#d97706",
+  "TECNOLOGÍA": "#0284c7",
+  "PRODUCTO / SERVICIO": "#7c3aed",
+  "INFORMACIÓN / DATOS": "#059669",
+  "ENTORNO": "#475569"
+};
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("ishikawa");
+
+function el(name, attrs) {
+  const e = document.createElementNS(SVG_NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function wrapText(text, maxLen) {
+  const words = text.split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    if ((cur + " " + w).trim().length > maxLen) { lines.push(cur.trim()); cur = w; }
+    else cur = (cur + " " + w).trim();
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// ---- Espina central ----
+svg.appendChild(el("line", { x1: 70, y1: 460, x2: 1210, y2: 460, stroke: "#334155", "stroke-width": 5 }));
+svg.appendChild(el("polygon", { points: "1210,452 1235,460 1210,468", fill: "#334155" }));
+
+// ---- Caja del problema (cabeza del pescado) ----
+svg.appendChild(el("rect", { x: 1245, y: 330, width: 245, height: 260, rx: 14, fill: "#0f172a" }));
+const pt = el("text", { x: 1367, y: 370, "text-anchor": "middle", fill: "#34d399", "font-size": "15", "font-weight": "bold", "font-family": "Segoe UI, Arial" });
+pt.textContent = "PROBLEMA";
+svg.appendChild(pt);
+wrapText(problema, 26).forEach((l, i) => {
+  const t = el("text", { x: 1367, y: 405 + i * 24, "text-anchor": "middle", fill: "#f8fafc", "font-size": "14.5", "font-family": "Segoe UI, Arial" });
+  t.textContent = l;
+  svg.appendChild(t);
+});
+
+// ---- Categorías y causas ----
+categorias.forEach((cat, i) => {
+  const x0 = 250 + i * 300;
+  const x1 = x0 + 300;
+  const y1 = 460 + (cat.lado === "top" ? -190 : 190);
+  const color = colores[cat.nombre];
+
+  // hueso principal
+  svg.appendChild(el("line", { x1: x0, y1: 460, x2: x1, y2: y1, stroke: color, "stroke-width": 3.5 }));
+
+  // caja de categoría en el extremo
+  const lx = x1 - 10, ly = cat.lado === "top" ? y1 - 62 : y1;
+  svg.appendChild(el("rect", { x: lx, y: ly, width: 170, height: 62, rx: 10, fill: color }));
+  const lt = el("text", { x: lx + 85, y: ly + 37, "text-anchor": "middle", fill: "#fff", "font-size": "14", "font-weight": "bold", "font-family": "Segoe UI, Arial" });
+  lt.textContent = cat.nombre;
+  svg.appendChild(lt);
+
+  // causas (ramas)
+  const n = cat.causas.length;
+  cat.causas.forEach((causa, j) => {
+    const t = (j + 1) / (n + 1);
+    const px = x0 + t * 300;
+    const py = 460 + t * (cat.lado === "top" ? -190 : 190);
+    const bx = px - 24, by = py + (cat.lado === "top" ? -38 : 38);
+    svg.appendChild(el("line", { x1: px, y1: py, x2: bx, y2: by, stroke: color, "stroke-width": 2 }));
+    const cLines = wrapText(causa, 24);
+    const tx = bx - 6, ty = by + (cat.lado === "top" ? -6 : 16);
+    cLines.forEach((l, k) => {
+      const t2 = el("text", { x: tx, y: ty + k * 14, "text-anchor": "end", fill: "#334155", "font-size": "12.5", "font-family": "Segoe UI, Arial" });
+      t2.textContent = l;
+      svg.appendChild(t2);
+    });
+  });
+});
+</script>
+</body>
+</html>
