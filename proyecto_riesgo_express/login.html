@@ -1,0 +1,112 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso — Dashboard de Riesgo de Crédito</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --color-bg:#0f172a; --color-surface:#1e293b; --color-border:#334155; }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; }
+    .shake { animation: shake .35s; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#134e4a 100%)">
+
+  <main class="w-full max-w-sm">
+    <!-- Card de login -->
+    <section id="card" class="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl p-7">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 text-xl font-black">◈</div>
+        <div>
+          <h1 class="text-lg font-bold text-white leading-tight">Dashboard de Riesgo</h1>
+          <p class="text-xs text-slate-400">Acceso restringido — proyecto universitario</p>
+        </div>
+      </div>
+
+      <form onsubmit="return intentarLogin(event)" class="space-y-4" novalidate>
+        <div>
+          <label for="usuario" class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Usuario</label>
+          <input id="usuario" type="text" autocomplete="username" required
+                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50"
+                 placeholder="admin · cobranzas · analista">
+        </div>
+        <div>
+          <label for="password" class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Contraseña</label>
+          <div class="relative">
+            <input id="password" type="password" autocomplete="current-password" required
+                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50"
+                   placeholder="••••••••">
+            <button type="button" onclick="togglePassword()" aria-label="Mostrar contraseña"
+                    class="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-300 text-sm">👁</button>
+          </div>
+        </div>
+
+        <p id="error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">Credenciales incorrectas</p>
+
+        <button type="submit" id="btn-login"
+                class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/20 transition">
+          Ingresar →
+        </button>
+      </form>
+    </section>
+
+    <p class="text-center text-slate-600 text-[11px] mt-5 leading-relaxed">
+      Sesión válida mientras la pestaña esté abierta (sessionStorage) · Contraseñas verificadas con SHA-256<br>
+      <span class="text-slate-700">Demo: admin/riesgo2026 · cobranzas/cobranzas2026 · analista/analista2026</span>
+    </p>
+  </main>
+
+  <script src="usuarios.js"></script>
+  <script>
+    const KEY = 'sesionRiesgo';
+
+    // SHA-256 hex vía Web Crypto (requiere contexto seguro: localhost ✓)
+    async function sha256Hex(texto) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function togglePassword() {
+      const inp = document.getElementById('password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    async function intentarLogin(ev) {
+      ev.preventDefault();
+      const usuario = document.getElementById('usuario').value.trim().toLowerCase();
+      const password = document.getElementById('password').value;
+      const err = document.getElementById('error');
+      const card = document.getElementById('card');
+      const btn = document.getElementById('btn-login');
+      err.classList.add('hidden');
+
+      if (!usuario || !password) { err.textContent = 'Completa usuario y contraseña'; err.classList.remove('hidden'); return false; }
+
+      btn.disabled = true; btn.textContent = 'Verificando…';
+      try {
+        const hash = await sha256Hex(password);
+        const encontrado = USUARIOS.find(u => u.usuario === usuario && u.hash === hash);
+        if (!encontrado) {
+          err.textContent = 'Credenciales incorrectas';
+          err.classList.remove('hidden');
+          card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+          document.getElementById('password').value = '';
+          return false;
+        }
+        sessionStorage.setItem(KEY, JSON.stringify({
+          usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol, ts: Date.now()
+        }));
+        location.href = 'index.mejorado.html';
+      } catch (e) {
+        err.textContent = 'Error de verificación: ' + e.message;
+        err.classList.remove('hidden');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Ingresar →';
+      }
+      return false;
+    }
+  </script>
+</body>
+</html>

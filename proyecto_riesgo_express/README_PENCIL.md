@@ -53,3 +53,20 @@ bunx --bun openpencil variables design/dashboard_v1.fig
 El bridge stdiO necesita la app desktop; headless puro = usar el CLI (arriba) o
 `openpencil-mcp-http` (HTTP en http://127.0.0.1:7600/mcp, requiere token Bearer
 vía OPENPENCIL_MCP_AUTH_TOKEN).
+
+## Login (demo académica)
+
+`login.html` controla el acceso a ambos dashboards (`index.html` y `index.mejorado.html`).
+
+- **Mecanismo**: usuarios en `usuarios.js` con passwords hasheadas SHA-256 (Web Crypto);
+  sesión en `sessionStorage` (expira al cerrar la pestaña); guard en `auth.js`.
+- **Roles**: Administrador, Cobranzas, Analista — visibles en el chip del header (v2).
+- **Logout**: botón "⏻ Salir" en el header de la v2.
+
+| Usuario | Password | Rol |
+|---|---|---|
+| `admin` | `riesgo2026` | Administrador |
+| `cobranzas` | `cobranzas2026` | Cobranzas |
+| `analista` | `analista2026` | Analista |
+
+⚠️ Es una demo académica: la validación es client-side (no es seguridad real de servidor).
