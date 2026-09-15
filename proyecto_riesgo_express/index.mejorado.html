@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Financiero — Análisis de Riesgo de Crédito v2 (OpenPencil)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    /* Design Tokens — extraídos y normalizados con OpenPencil analyze */
+    :root {
+      --color-bg: #0f172a; --color-surface: #1e293b; --color-surface-hover: #334155;
+      --color-border: #334155; --color-text: #f1f5f9; --color-muted: #94a3b8;
+      --color-success: #10b981; --color-warning: #f59e0b; --color-danger: #f43f5e; --color-info: #0ea5e9;
+      --radius-card: 16px; --radius-pill: 9999px;
+      --shadow-card: 0 4px 24px rgba(0,0,0,0.25);
+    }
+    * { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+    .token-badge { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="bg-[var(--color-bg)] text-[var(--color-text)] font-sans antialiased">
+  <!-- Sticky Header con filtros — mejora OpenPencil: navegación + acciones principales visibles -->
+  <header class="sticky top-0 z-30 backdrop-blur-xl bg-slate-900/80 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+      <div class="flex gap-3 items-center">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black">◈</div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold leading-none">Dashboard de Riesgo</h1>
+          <p class="text-xs text-slate-400">3 bases unificadas • diseño auditado con OpenPencil lint</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <div class="flex bg-slate-800 rounded-full p-1 border border-slate-700">
+          <button onclick="filtrarRiesgo('todos')" id="f-todos" class="filtro-btn bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-xs font-bold">Todos</button>
+          <button onclick="filtrarRiesgo('Alto')" id="f-alto" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Alto</button>
+          <button onclick="filtrarRiesgo('Medio')" id="f-medio" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Medio</button>
+          <button onclick="filtrarRiesgo('Bajo')" id="f-bajo" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Bajo</button>
+        </div>
+        <button onclick="exportarCSV()" class="hidden sm:inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition">⬇ Exportar CSV</button>
+        <button onclick="automatizarAlertas()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-lg shadow-emerald-500/20 transition">⚡ Automatizar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <!-- KPIs — OpenPencil: 8px grid, icon + trend, tabular-nums para moneda -->
+    <section aria-labelledby="kpis-title" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <h2 id="kpis-title" class="sr-only">Indicadores clave</h2>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)]">
+        <div class="flex justify-between items-start">
+          <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Exposición total</span>
+          <span class="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-xs">💰</span>
+        </div>
+        <p id="kpi-monto" class="token-badge text-2xl font-extrabold mt-2">$0</p>
+        <p class="text-xs text-slate-500 mt-1"><span class="text-emerald-400">▲ 6 clientes</span> en cartera</p>
+      </div>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)]">
+        <div class="flex justify-between items-start">
+          <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Pérdida esperada (EL)</span>
+          <span class="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-xs">⚠️</span>
+        </div>
+        <p id="kpi-perdida" class="token-badge text-2xl font-extrabold mt-2 text-rose-400">$0</p>
+        <p id="kpi-perdida-pct" class="text-xs text-slate-500 mt-1">— % de exposición</p>
+      </div>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)]">
+        <div class="flex justify-between items-start">
+          <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Alto riesgo</span>
+          <span class="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-xs">🔴</span>
+        </div>
+        <p id="kpi-alto-riesgo" class="token-badge text-2xl font-extrabold mt-2 text-rose-500">0</p>
+        <p class="text-xs text-slate-500 mt-1">requieren acción inmediata</p>
+      </div>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)]">
+        <div class="flex justify-between items-start">
+          <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Score promedio</span>
+          <span class="w-7 h-7 rounded-lg bg-sky-500/15 flex items-center justify-center text-xs">⭐</span>
+        </div>
+        <p id="kpi-score" class="token-badge text-2xl font-extrabold mt-2 text-sky-400">0 pts</p>
+        <p class="text-xs text-slate-500 mt-1">escala 0–1000</p>
+      </div>
+    </section>
+
+    <!-- Gráficos — OpenPencil analyze: spacing 24px, consistencia tipográfica, contraste AA -->
+    <section aria-labelledby="graficos-title" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <h2 id="graficos-title" class="sr-only">Visualizaciones</h2>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <h3 class="text-sm font-semibold text-slate-200 mb-3">Distribución del riesgo</h3>
+        <div class="w-56 h-56 mx-auto"><canvas id="chartRiesgo" role="img" aria-label="Distribución de riesgo por nivel"></canvas></div>
+        <p class="text-xs text-center text-slate-500 mt-2">Bajo / Medio / Alto — conteo clientes</p>
+      </div>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <h3 class="text-sm font-semibold text-slate-200 mb-3">Monto expuesto por cliente</h3>
+        <div class="h-56"><canvas id="chartMonto" role="img" aria-label="Monto expuesto por cliente"></canvas></div>
+      </div>
+      <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <h3 class="text-sm font-semibold text-slate-200 mb-3">Score vs Mora (tamaño = monto)</h3>
+        <div class="h-56"><canvas id="chartBubble" role="img" aria-label="Score versus días de mora"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Panel automatización -->
+    <section id="auto-panel" class="hidden bg-[var(--color-surface)] p-6 rounded-[var(--radius-card)] border border-emerald-500/30 shadow-xl" aria-live="polite">
+      <h3 class="text-base font-bold text-emerald-400">⚡ Resultado de la automatización</h3>
+      <p class="text-sm text-slate-300 mt-1"><span id="auto-alertas" class="font-bold text-white">0</span> alertas • Monto en riesgo <span id="auto-monto" class="font-bold text-rose-400">$0</span></p>
+      <ul id="auto-lista" class="mt-3 space-y-2"></ul>
+      <p class="text-xs text-slate-500 mt-3">Reglas: ≥90d → jurídico • ≥30d → preventiva • prob ≥40% → reestructuración • resto → monitoreo.</p>
+    </section>
+
+    <!-- Tabla — OpenPencil lint: sticky header, búsqueda, responsive, sorted, accesible -->
+    <section class="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden">
+      <div class="p-4 sm:p-5 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center border-b border-slate-700/50">
+        <h3 class="text-sm font-semibold">Consolidado de cartera</h3>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <label class="sr-only" for="buscar">Buscar</label>
+          <input id="buscar" oninput="filtrarTabla()" placeholder="Buscar ID o nombre…" class="flex-1 sm:w-64 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+          <select id="orden" onchange="ordenarTabla()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+            <option value="monto-desc">Monto ↓</option>
+            <option value="monto-asc">Monto ↑</option>
+            <option value="score-desc">Score ↓</option>
+            <option value="mora-desc">Mora ↓</option>
+            <option value="riesgo">Riesgo Alto primero</option>
+          </select>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm min-w-[980px]">
+          <thead class="sticky top-0 bg-slate-800/95 backdrop-blur">
+            <tr class="text-xs text-slate-400 border-b border-slate-700">
+              <th scope="col" class="px-4 py-3 font-semibold">ID</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Nombre</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">Monto</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Plazo</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Tasa</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Mora</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Score</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Prob.</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Riesgo</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo" class="divide-y divide-slate-700/40"></tbody>
+        </table>
+      </div>
+      <div id="tabla-vacia" class="hidden p-8 text-center text-sm text-slate-500">Sin resultados para el filtro actual.</div>
+      <div class="px-4 py-3 border-t border-slate-700/50 flex justify-between items-center text-xs text-slate-500">
+        <span id="tabla-conteo">6 registros</span>
+        <span>OpenPencil • tokens: slate/emerald/rose/amber/sky • spacing 4/8 grid</span>
+      </div>
+    </section>
+
+    <footer class="text-center text-slate-600 text-xs py-2">v2 mejorado con OpenPencil — <a href="index.html" class="underline hover:text-slate-400">ver v1 original</a> • <code class="bg-slate-800 px-1.5 py-0.5 rounded">openpencil lint / analyze / variables</code> aplicados</footer>
+  </main>
+
+  <script src="datos.js"></script>
+  <script>
+    const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+    // filtros globales
+    let filtroActual = 'todos';
+    let textoBusqueda = '';
+    let ordenActual = 'monto-desc';
+
+    // KPIs
+    const totalMonto = baseDatosConsolidada.reduce((a,c)=>a+c.monto,0);
+    const perdida = baseDatosConsolidada.reduce((a,c)=>a+c.monto*c.probDefault,0);
+    const alto = baseDatosConsolidada.filter(c=>c.estado==='Alto').length;
+    const scoreProm = Math.round(baseDatosConsolidada.reduce((a,c)=>a+c.score,0)/baseDatosConsolidada.length);
+    document.getElementById('kpi-monto').innerText = fmtCOP.format(totalMonto);
+    document.getElementById('kpi-perdida').innerText = fmtCOP.format(perdida);
+    document.getElementById('kpi-perdida-pct').innerText = ((perdida/totalMonto*100)||0).toFixed(1)+'% de exposición';
+    document.getElementById('kpi-alto-riesgo').innerText = alto;
+    document.getElementById('kpi-score').innerText = scoreProm+' pts';
+
+    const colorEstado = { 'Alto':'bg-rose-500/10 text-rose-400 border-rose-500/20','Medio':'bg-amber-500/10 text-amber-400 border-amber-500/20','Bajo':'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+    const hexEstado = { 'Alto':'#f43f5e','Medio':'#f59e0b','Bajo':'#10b981' };
+
+    function aplicarFiltros() {
+      let data = [...baseDatosConsolidada];
+      if (filtroActual !== 'todos') data = data.filter(c=>c.estado===filtroActual);
+      if (textoBusqueda) {
+        const q = textoBusqueda.toLowerCase();
+        data = data.filter(c=> c.id.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q));
+      }
+      // orden
+      if (ordenActual==='monto-desc') data.sort((a,b)=>b.monto-a.monto);
+      if (ordenActual==='monto-asc') data.sort((a,b)=>a.monto-b.monto);
+      if (ordenActual==='score-desc') data.sort((a,b)=>b.score-a.score);
+      if (ordenActual==='mora-desc') data.sort((a,b)=>b.moraDias-a.moraDias);
+      if (ordenActual==='riesgo') { const o={Alto:0,Medio:1,Bajo:2}; data.sort((a,b)=>o[a.estado]-o[b.estado]); }
+      renderTabla(data);
+    }
+    function renderTabla(data){
+      const tbody=document.getElementById('tabla-cuerpo');
+      const vacia=document.getElementById('tabla-vacia');
+      tbody.innerHTML='';
+      if(!data.length){ vacia.classList.remove('hidden'); document.getElementById('tabla-conteo').innerText='0 registros'; return; }
+      vacia.classList.add('hidden');
+      document.getElementById('tabla-conteo').innerText=data.length+' registro'+(data.length!==1?'s':'');
+      data.forEach(item=>{
+        const tr=document.createElement('tr');
+        tr.className='hover:bg-slate-700/30 transition-colors';
+        tr.innerHTML=`<td class="px-4 py-3 font-mono text-slate-400 text-xs">${item.id}</td><td class="px-4 py-3 font-medium text-white">${item.nombre}</td><td class="px-4 py-3 text-right tabular-nums">${fmtCOP.format(item.monto)}</td><td class="px-4 py-3">${item.plazo} m</td><td class="px-4 py-3">${item.tasa.toFixed(1)}%</td><td class="px-4 py-3">${item.moraDias} d</td><td class="px-4 py-3">${item.score}</td><td class="px-4 py-3">${(item.probDefault*100).toFixed(0)}%</td><td class="px-4 py-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${colorEstado[item.estado]}">${item.estado}</span></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function filtrarRiesgo(nivel){
+      filtroActual=nivel;
+      document.querySelectorAll('.filtro-btn').forEach(b=>{ b.className='filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white'; });
+      const id = nivel==='todos'?'f-todos': nivel==='Alto'?'f-alto': nivel==='Medio'?'f-medio':'f-bajo';
+      document.getElementById(id).className='filtro-btn bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-xs font-bold';
+      aplicarFiltros();
+    }
+    function filtrarTabla(){ textoBusqueda=document.getElementById('buscar').value; aplicarFiltros(); }
+    function ordenarTabla(){ ordenActual=document.getElementById('orden').value; aplicarFiltros(); }
+    function exportarCSV(){
+      const headers=['ID','Nombre','Monto','Plazo','Tasa','Mora','Score','Prob','Riesgo'];
+      const rows = baseDatosConsolidada.map(c=>[c.id,c.nombre,c.monto,c.plazo,c.tasa,c.moraDias,c.score,c.probDefault,c.estado].join(','));
+      const csv=[headers.join(','),...rows].join('\n');
+      const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='cartera_riesgo.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+    // inicial
+    aplicarFiltros();
+
+    // Charts — idénticos a v1 pero con tooltips mejorados y accesibles
+    const contar=(e)=>baseDatosConsolidada.filter(c=>c.estado===e).length;
+    new Chart(document.getElementById('chartRiesgo'),{type:'doughnut',data:{labels:['Bajo','Medio','Alto'],datasets:[{data:[contar('Bajo'),contar('Medio'),contar('Alto')],backgroundColor:['#10b981','#f59e0b','#f43f5e'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:'#94a3b8'}},tooltip:{callbacks:{label:(c)=>' '+c.label+': '+c.parsed+' clientes'}}},cutout:'70%'}});
+    new Chart(document.getElementById('chartMonto'),{type:'bar',data:{labels:baseDatosConsolidada.map(c=>c.id),datasets:[{label:'Monto (COP)',data:baseDatosConsolidada.map(c=>c.monto),backgroundColor:baseDatosConsolidada.map(c=>hexEstado[c.estado]),borderRadius:8}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>' '+fmtCOP.format(c.parsed.y)}}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{ticks:{color:'#94a3b8',callback:(v)=>'$'+(v/1e6).toFixed(0)+'M'},grid:{color:'#334155'}}}}});
+    new Chart(document.getElementById('chartBubble'),{type:'bubble',data:{datasets:[{label:'Clientes',data:baseDatosConsolidada.map(c=>({x:c.moraDias,y:c.score,r:Math.sqrt(c.monto)/4000})),backgroundColor:baseDatosConsolidada.map(c=>hexEstado[c.estado]+'CC')}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>' '+c.raw.x+'d mora • '+c.raw.y+' pts • '+fmtCOP.format(baseDatosConsolidada[c.dataIndex].monto)}}},scales:{x:{title:{display:true,text:'Días de mora',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{title:{display:true,text:'Score',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{color:'#334155'}}}}});
+
+    function automatizarAlertas(){
+      const criticos=baseDatosConsolidada.filter(c=>c.estado==='Alto'||c.probDefault>=0.3||c.moraDias>=90);
+      const monto=criticos.reduce((a,c)=>a+c.monto,0);
+      const regla=(c)=>c.moraDias>=90?'Cobro jurídico':c.moraDias>=30?'Cobranza preventiva':c.probDefault>=0.4?'Reestructuración':'Monitoreo intensivo';
+      document.getElementById('auto-alertas').innerText=criticos.length;
+      document.getElementById('auto-monto').innerText=fmtCOP.format(monto);
+      document.getElementById('auto-lista').innerHTML=criticos.map(c=>`<li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3"><span class="font-mono text-slate-400 text-xs">${c.id}</span><span class="font-medium text-white">${c.nombre}</span><span class="text-rose-400 font-semibold tabular-nums">${fmtCOP.format(c.monto)}</span><span class="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-full px-3 py-1">${regla(c)}</span></li>`).join('');
+      document.getElementById('auto-panel').classList.remove('hidden');
+      document.getElementById('auto-panel').scrollIntoView({behavior:'smooth'});
+    }
+  </script>
+</body>
+</html>
