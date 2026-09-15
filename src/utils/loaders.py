@@ -81,7 +81,7 @@ def load_icetex(path: Path | str | None = None) -> pd.DataFrame:
     path = Path(path) if path else RAW / "Comportamiento_de_Cartera_y_Crédito._20260914.csv"
     df = pd.read_csv(path)
 
-    df["FECHA_CORTE"] = pd.to_datetime(df["FECHA CORTE"], format="%Y %b %d %I:%M:%S %p")
+    df["FECHA CORTE"] = pd.to_datetime(df["FECHA CORTE"], format="%Y %b %d %I:%M:%S %p")
 
     for c in ["SALDO CAPITAL", "SALDO TOTAL", "SALDO MORA"]:
         df[c] = df[c].map(parse_monto_icetex)
