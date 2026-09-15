@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Financiero — Análisis de Riesgo de Crédito</title>
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans p-6">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- ============ ENCABEZADO ============ -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+      <div>
+        <h1 class="text-2xl font-bold text-emerald-400">🛡️ Dashboard de Riesgo Financiero</h1>
+        <p class="text-slate-400 text-sm">Consolidado y automatización de 3 bases de datos — Clientes × Créditos × Historial/Mora</p>
+      </div>
+      <button onclick="automatizarAlertas()" class="mt-4 md:mt-0 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2 px-4 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20">
+        ⚡ Ejecutar Automatización
+      </button>
+    </div>
+
+    <!-- ============ KPIs ============ -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Exposición Total Cartera</span>
+        <p id="kpi-monto" class="text-2xl font-extrabold text-white mt-1">$0</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Pérdida Esperada (EL)</span>
+        <p id="kpi-perdida" class="text-2xl font-extrabold text-rose-400 mt-1">$0</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Clientes Alto Riesgo</span>
+        <p id="kpi-alto-riesgo" class="text-2xl font-extrabold text-rose-500 mt-1">0</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Score Promedio Cartera</span>
+        <p id="kpi-score" class="text-2xl font-extrabold text-sky-400 mt-1">0 pts</p>
+      </div>
+    </div>
+
+    <!-- ============ GRÁFICOS ============ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Doughnut: Distribución de riesgo -->
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-center items-center">
+        <h3 class="text-md font-semibold text-slate-300 mb-4 w-full text-left">Distribución del Riesgo</h3>
+        <div class="w-56 h-56">
+          <canvas id="chartRiesgo"></canvas>
+        </div>
+      </div>
+
+      <!-- Bar: Monto expuesto por cliente -->
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <h3 class="text-md font-semibold text-slate-300 mb-4">Monto Expuesto por Cliente</h3>
+        <div class="h-56">
+          <canvas id="chartMonto"></canvas>
+        </div>
+      </div>
+
+      <!-- Bubble: Score vs Días de mora -->
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
+        <h3 class="text-md font-semibold text-slate-300 mb-4">Score vs Días de Mora (tamaño = monto)</h3>
+        <div class="h-56">
+          <canvas id="chartBubble"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PANEL DE AUTOMATIZACIÓN (oculto hasta ejecutar) ============ -->
+    <div id="auto-panel" class="hidden bg-slate-800 p-6 rounded-2xl border border-emerald-500/40 shadow-lg">
+      <h3 class="text-lg font-bold text-emerald-400 mb-2">⚡ Resultado de la Automatización</h3>
+      <p class="text-slate-300 text-sm mb-4">
+        Se generaron <span id="auto-alertas" class="font-bold text-white">0</span> alertas automáticas para el área de Cobranzas.
+        Monto total en riesgo: <span id="auto-monto" class="font-bold text-rose-400">$0</span>
+      </p>
+      <ul id="auto-lista" class="space-y-2"></ul>
+      <p class="text-slate-500 text-xs mt-4">Reglas aplicadas: mora ≥ 90 días → cobro jurídico · mora ≥ 30 días → cobranza preventiva · prob. default ≥ 40% → reestructuración · resto → monitoreo intensivo.</p>
+    </div>
+
+    <!-- ============ TABLA CONSOLIDADA ============ -->
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md overflow-x-auto">
+      <h3 class="text-md font-semibold text-slate-300 mb-4">Consolidado de Cartera (3 bases unificadas)</h3>
+      <table class="w-full text-left border-collapse text-sm min-w-[900px]">
+        <thead>
+          <tr class="text-slate-400 border-b border-slate-700">
+            <th class="pb-3">ID</th>
+            <th class="pb-3">Nombre</th>
+            <th class="pb-3">Monto Expuesto</th>
+            <th class="pb-3">Plazo</th>
+            <th class="pb-3">Tasa</th>
+            <th class="pb-3">Días Mora</th>
+            <th class="pb-3">Score</th>
+            <th class="pb-3">Prob. Default</th>
+            <th class="pb-3">Nivel Riesgo</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-cuerpo" class="divide-y divide-slate-700/50"></tbody>
+      </table>
+    </div>
+
+    <footer class="text-center text-slate-600 text-xs pb-4">
+      Proyecto universitario — Análisis de Riesgo de Crédito · Datos simulados con fines académicos
+    </footer>
+  </div>
+
+  <script src="datos.js"></script>
+  <script>
+    // ============ Formato moneda COP ============
+    const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+    // ============ 1. KPIs ============
+    const totalMonto = baseDatosConsolidada.reduce((acc, c) => acc + c.monto, 0);
+    const perdidaEsperada = baseDatosConsolidada.reduce((acc, c) => acc + c.monto * c.probDefault, 0);
+    const clientesAltoRiesgo = baseDatosConsolidada.filter(c => c.estado === 'Alto').length;
+    const scorePromedio = Math.round(baseDatosConsolidada.reduce((acc, c) => acc + c.score, 0) / baseDatosConsolidada.length);
+
+    document.getElementById('kpi-monto').innerText = fmtCOP.format(totalMonto);
+    document.getElementById('kpi-perdida').innerText = fmtCOP.format(perdidaEsperada);
+    document.getElementById('kpi-alto-riesgo').innerText = clientesAltoRiesgo;
+    document.getElementById('kpi-score').innerText = `${scorePromedio} pts`;
+
+    // ============ 2. Tabla ============
+    const colorEstado = {
+      'Alto':  'bg-rose-500/10 text-rose-400 border-rose-500/20',
+      'Medio': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      'Bajo':  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+    };
+    const hexEstado = { 'Alto': '#f43f5e', 'Medio': '#f59e0b', 'Bajo': '#10b981' };
+
+    const tbody = document.getElementById('tabla-cuerpo');
+    baseDatosConsolidada.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-700/30 transition-colors';
+      tr.innerHTML = `
+        <td class="py-3 font-mono text-slate-400">${item.id}</td>
+        <td class="py-3 font-medium text-white">${item.nombre}</td>
+        <td class="py-3">${fmtCOP.format(item.monto)}</td>
+        <td class="py-3">${item.plazo} meses</td>
+        <td class="py-3">${item.tasa.toFixed(1)}% EA</td>
+        <td class="py-3">${item.moraDias} días</td>
+        <td class="py-3">${item.score}</td>
+        <td class="py-3">${(item.probDefault * 100).toFixed(0)}%</td>
+        <td class="py-3">
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${colorEstado[item.estado]}">${item.estado}</span>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+    // ============ 3. Gráficos ============
+    const contar = (estado) => baseDatosConsolidada.filter(c => c.estado === estado).length;
+
+    // 3.1 Doughnut — distribución de riesgo
+    new Chart(document.getElementById('chartRiesgo'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Bajo', 'Medio', 'Alto'],
+        datasets: [{
+          data: [contar('Bajo'), contar('Medio'), contar('Alto')],
+          backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        cutout: '70%'
+      }
+    });
+
+    // 3.2 Barras — monto expuesto por cliente
+    new Chart(document.getElementById('chartMonto'), {
+      type: 'bar',
+      data: {
+        labels: baseDatosConsolidada.map(c => c.id),
+        datasets: [{
+          label: 'Monto expuesto (COP)',
+          data: baseDatosConsolidada.map(c => c.monto),
+          backgroundColor: baseDatosConsolidada.map(c => hexEstado[c.estado]),
+          borderRadius: 8
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        }
+      }
+    });
+
+    // 3.3 Burbujas — score vs días de mora (tamaño = monto)
+    new Chart(document.getElementById('chartBubble'), {
+      type: 'bubble',
+      data: {
+        datasets: [{
+          label: 'Clientes',
+          data: baseDatosConsolidada.map(c => ({
+            x: c.moraDias,
+            y: c.score,
+            r: Math.sqrt(c.monto) / 4000
+          })),
+          backgroundColor: baseDatosConsolidada.map(c => hexEstado[c.estado] + 'CC')
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { title: { display: true, text: 'Días de mora', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { title: { display: true, text: 'Score de crédito', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        }
+      }
+    });
+
+    // ============ 4. Automatización ============
+    function automatizarAlertas() {
+      const criticos = baseDatosConsolidada.filter(c => c.estado === 'Alto' || c.probDefault >= 0.3 || c.moraDias >= 90);
+      const montoEnRiesgo = criticos.reduce((acc, c) => acc + c.monto, 0);
+
+      const regla = (c) => {
+        if (c.moraDias >= 90) return 'Cobro jurídico / castigo de cartera';
+        if (c.moraDias >= 30) return 'Gestión de cobranza preventiva';
+        if (c.probDefault >= 0.4) return 'Reestructuración de crédito';
+        return 'Monitoreo intensivo';
+      };
+
+      const lista = criticos.map(c => `
+        <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3">
+          <span class="font-mono text-slate-400 text-xs">${c.id}</span>
+          <span class="font-medium text-white">${c.nombre}</span>
+          <span class="text-rose-400 font-semibold">${fmtCOP.format(c.monto)}</span>
+          <span class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">${regla(c)}</span>
+        </li>`).join('');
+
+      document.getElementById('auto-alertas').innerText = criticos.length;
+      document.getElementById('auto-monto').innerText = fmtCOP.format(montoEnRiesgo);
+      document.getElementById('auto-lista').innerHTML = lista;
+      document.getElementById('auto-panel').classList.remove('hidden');
+      document.getElementById('auto-panel').scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
