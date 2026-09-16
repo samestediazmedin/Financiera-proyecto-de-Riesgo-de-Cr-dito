@@ -1,4 +1,4 @@
-﻿"""Motor de Analisis de Riesgos — 100% local (localhost) — v2 OpenPencil.
+"""Motor de Analisis de Riesgos — 100% local (localhost) — v2 OpenPencil.
 
 Ejecutar con:  .venv\\\\Scripts\\\\streamlit.exe run app.py
 Lee los CSV limpios de data/processed/ (generados por src/utils/loaders.py).
@@ -17,6 +17,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+
+from src.utils.gemini_advisor import consultar_asesor_gemini, sugerencias_rapidas
 
 # ---------------------------------------------------------------------------
 # Configuracion de pagina + Tokens OpenPencil
@@ -92,7 +94,7 @@ if not df_sfc.empty:
         return "Bajo"
     df_sfc["nivel_riesgo"] = df_sfc["pct_vencida"].map(clasificar_riesgo)
     # Score proxy 0-1000 (inverso a pct_vencida)
-    df_sfc["score_proxy"] = (1000 - df_sfc["pct_vencida"].clip(0, 50) * 20).clip(0, 1000).round().astype(int)
+    df_sfc["score_proxy"] = (1000 - df_sfc["pct_vencida"].fillna(0).clip(0, 50) * 20).clip(0, 1000).round().astype(int)
 else:
     df_sfc["vencida_total"] = pd.Series(dtype=float)
     df_sfc["pct_vencida"] = pd.Series(dtype=float)
@@ -186,7 +188,8 @@ if st.button("⚡ Automatizar alertas", type="primary"):
     st.session_state.show_auto = not st.session_state.show_auto
 
 if st.session_state.show_auto and not df_filtrado.empty:
-    criticos = df_filtrado[(df_filtrado["nivel_riesgo"] == "Alto") | (df_filtrado["pct_vencida"] >= 10) | (df_filtrado["vencida_total"] >= df_filtrado["saldo_total_cartera"] * 0.3)]
+    mask_crit = ((df_filtrado["nivel_riesgo"] == "Alto") | (df_filtrado["pct_vencida"].fillna(0) >= 10) | (df_filtrado["vencida_total"].fillna(0) >= df_filtrado["saldo_total_cartera"].fillna(0) * 0.3)).fillna(False)
+    criticos = df_filtrado[mask_crit]
     if criticos.empty:
         criticos = df_filtrado.nlargest(min(5, len(df_filtrado)), "pct_vencida")
     monto_riesgo = criticos["saldo_total_cartera"].sum() if not criticos.empty else 0
@@ -200,6 +203,7 @@ if st.session_state.show_auto and not df_filtrado.empty:
     # Lista criticos
     for _, r in criticos.head(8).iterrows():
         pct = r.get("pct_vencida", 0)
+        pct = 0 if pd.isna(pct) else float(pct)
         if pct >= 10: regla = "Cobro jurídico"
         elif pct >= 5: regla = "Cobranza preventiva"
         elif r.get("riesgo_E_saldo", 0) > r.get("saldo_total_cartera", 1) * 0.1: regla = "Reestructuración"
@@ -218,7 +222,7 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # Pestanas de analisis
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(["🏦 Vista SFC (Superfinanciera)", "🎓 Vista ICETEX", "📈 Análisis de Riesgo"])
+tab1, tab2, tab3, tab4 = st.tabs(["🏦 Vista SFC (Superfinanciera)", "🎓 Vista ICETEX", "📈 Análisis de Riesgo", "🤖 Asesor IA (Gemini)"])
 
 # ------------------------- TAB 1: SFC --------------------------------------
 with tab1:
@@ -304,3 +308,61 @@ with tab3:
 """)
     st.caption("Footer: v2 mejorado con OpenPencil — tokens slate/emerald/rose/amber/sky · spacing 4/8 grid · ver proyecto_riesgo_express/index.mejorado.html para referencia v1/v2")
 
+# ------------------------- TAB 4: Asesor IA (Gemini) ------------------------
+with tab4:
+    st.subheader("🤖 Asesor Inteligente de Riesgo (Gemini)")
+    st.caption("Analiza la cartera SFC del filtro activo y responde preguntas de negocio en lenguaje natural. Requiere GEMINI_API_KEY (.env o variable de entorno).")
+
+    if df_sfc.empty:
+        st.info("Carga los datos SFC para activar el asesor.")
+    else:
+        # Resumen del filtro activo para el modelo
+        resumen_cartera = {
+            "total_monto": float(cartera_total or 0),
+            "pct_vencida": float(pct_vencida_sistema or 0),
+            "registros": int(len(df_filtrado)),
+            "cant_alto_riesgo": int(alto_conteo or 0),
+            "score_prom": int(score_prom or 0),
+        }
+
+        # Top entidades con mayor % vencida en el ultimo corte del filtro
+        top_txt = ""
+        try:
+            ultimo_ia = df_filtrado[df_filtrado["fecha_corte"] == df_filtrado["fecha_corte"].max()]
+            if not ultimo_ia.empty:
+                ent = ultimo_ia.groupby("entidad").agg(
+                    saldo=("saldo_total_cartera", "sum"), vencida=("vencida_total", "sum")
+                ).reset_index()
+                ent["pct"] = ent["vencida"] / ent["saldo"].replace(0, pd.NA) * 100
+                ent = ent.dropna(subset=["pct"]).nlargest(5, "pct")
+                lineas = [f"- {r.entidad}: {r.pct:.1f}% vencida (saldo ${r.saldo:,.0f})" for r in ent.itertuples()]
+                if lineas:
+                    top_txt = "\nEntidades con mayor % de vencida (último corte):\n" + "\n".join(lineas)
+        except Exception:
+            pass
+
+        cA, cB, cC = st.columns(3)
+        presets = sugerencias_rapidas()
+        if cA.button(presets[0], use_container_width=True): st.session_state.pregunta_ia = presets[0]
+        if cB.button(presets[1], use_container_width=True): st.session_state.pregunta_ia = presets[1]
+        if cC.button(presets[2], use_container_width=True): st.session_state.pregunta_ia = presets[2]
+
+        user_query = st.text_input(
+            "Pregunta al asesor sobre la cartera:",
+            value=st.session_state.get("pregunta_ia", ""),
+            placeholder="Ej: ¿Qué entidades concentran el mayor riesgo y qué recomiendas?",
+        )
+
+        if st.button("🔍 Consultar asesor", type="primary") and user_query.strip():
+            with st.spinner("Analizando la cartera con Gemini..."):
+                respuesta = consultar_asesor_gemini(user_query.strip(), resumen_cartera, top_txt)
+            st.markdown(respuesta)
+        elif st.button("🔍 Consultar asesor", type="primary"):
+            st.warning("Escribe una pregunta primero (o usa un botón de sugerencia).")
+
+        with st.expander("ℹ️ Cómo configurar la API key"):
+            st.markdown(
+                "1. Crea una key gratuita en [aistudio.google.com](https://aistudio.google.com)\n"
+                "2. Crea un archivo `.env` en la raíz del proyecto:\n```\nGEMINI_API_KEY=tu_key_aqui\n```\n"
+                "3. Recarga la página. Sin key, el resto del dashboard funciona igual."
+            )
