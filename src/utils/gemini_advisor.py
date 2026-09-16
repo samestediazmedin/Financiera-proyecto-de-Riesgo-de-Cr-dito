@@ -1,4 +1,4 @@
-﻿"""Asesor de riesgo financiero con IA (Google Gemini) — v1.
+﻿"""Asesor de riesgo financiero con IA (Google Gemini) — v2.
 
 Convierte los agregados de la cartera SFC en contexto para el modelo y
 responde preguntas de negocio en lenguaje natural.
@@ -16,6 +16,10 @@ import os
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
+
+# Modelos por orden de preferencia (Google retira versiones antiguas para
+# usuarios nuevos; 404 => probar el siguiente).
+MODELOS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]
 
 
 def _cargar_dotenv() -> None:
@@ -67,12 +71,18 @@ Usa cifras del contexto cuando aporten. Si la pregunta requiere datos que no
 están en el contexto, dilo explícitamente y sugiere qué filtro aplicar en el
 dashboard para obtenerlos."""
 
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-        return response.text or "_(sin respuesta del modelo)_"
-    except Exception as e:  # red, cuota, key inválida…
-        return f"❌ Error al consultar Gemini: {e}"
+    client = genai.Client(api_key=api_key)
+    ultimo_error: Exception | None = None
+    for modelo in MODELOS:
+        try:
+            response = client.models.generate_content(model=modelo, contents=prompt)
+            return response.text or "_(sin respuesta del modelo)_"
+        except Exception as e:
+            ultimo_error = e
+            # 404/NOT_FOUND => modelo retirado, probar el siguiente; otros errores, salir
+            if "404" not in str(e) and "NOT_FOUND" not in str(e):
+                break
+    return f"❌ Error al consultar Gemini: {ultimo_error}"
 
 
 def sugerencias_rapidas() -> list[str]:
