@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso — Dashboard de Riesgo de Crédito</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="sha256.js"></script>
   <style>
     :root { --color-bg:#0f172a; --color-surface:#1e293b; --color-border:#334155; }
     body { font-family: ui-sans-serif, system-ui, sans-serif; }
@@ -15,7 +16,6 @@
 <body class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#134e4a 100%)">
 
   <main class="w-full max-w-sm">
-    <!-- Card de login -->
     <section id="card" class="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl p-7">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 text-xl font-black">◈</div>
@@ -44,6 +44,7 @@
         </div>
 
         <p id="error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">Credenciales incorrectas</p>
+        <p id="aviso" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"></p>
 
         <button type="submit" id="btn-login"
                 class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/20 transition">
@@ -53,7 +54,7 @@
     </section>
 
     <p class="text-center text-slate-600 text-[11px] mt-5 leading-relaxed">
-      Sesión válida mientras la pestaña esté abierta (sessionStorage) · Contraseñas verificadas con SHA-256<br>
+      SHA-256 (Web Crypto con respaldo JS puro) · Sesión en pestaña o enlace firmado<br>
       <span class="text-slate-700">Demo: admin/riesgo2026 · cobranzas/cobranzas2026 · analista/analista2026</span>
     </p>
   </main>
@@ -62,10 +63,17 @@
   <script>
     const KEY = 'sesionRiesgo';
 
-    // SHA-256 hex vía Web Crypto (requiere contexto seguro: localhost ✓)
-    async function sha256Hex(texto) {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
-      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    // SHA-256: Web Crypto si existe, sino fallback JS puro (sha256.js)
+    async function calcularHash(texto) {
+      try {
+        if (window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === 'function') {
+          const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+          return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+      } catch (e) { console.warn('[login] Web Crypto falló, usando fallback JS:', e && e.message); }
+      const h = (typeof sha256Sync === 'function') ? sha256Sync(texto) : null;
+      if (!h) throw new Error('No hay mecanismo SHA-256 disponible');
+      return h;
     }
 
     function togglePassword() {
@@ -73,39 +81,57 @@
       inp.type = inp.type === 'password' ? 'text' : 'password';
     }
 
+    function b64Unicode(str) { return btoa(unescape(encodeURIComponent(str))); }
+
     async function intentarLogin(ev) {
       ev.preventDefault();
       const usuario = document.getElementById('usuario').value.trim().toLowerCase();
       const password = document.getElementById('password').value;
       const err = document.getElementById('error');
+      const aviso = document.getElementById('aviso');
       const card = document.getElementById('card');
       const btn = document.getElementById('btn-login');
-      err.classList.add('hidden');
+      err.classList.add('hidden'); aviso.classList.add('hidden');
 
-      if (!usuario || !password) { err.textContent = 'Completa usuario y contraseña'; err.classList.remove('hidden'); return false; }
+      if (!usuario || !password) {
+        err.textContent = 'Completa usuario y contraseña'; err.classList.remove('hidden'); return false;
+      }
 
       btn.disabled = true; btn.textContent = 'Verificando…';
       try {
-        const hash = await sha256Hex(password);
+        const hash = await calcularHash(password);
         const encontrado = USUARIOS.find(u => u.usuario === usuario && u.hash === hash);
         if (!encontrado) {
-          err.textContent = 'Credenciales incorrectas';
+          err.textContent = 'Credenciales incorrectas (verifica usuario y contraseña)';
           err.classList.remove('hidden');
           card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
           document.getElementById('password').value = '';
           return false;
         }
-        sessionStorage.setItem(KEY, JSON.stringify({
-          usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol, ts: Date.now()
-        }));
-        location.href = 'index.mejorado.html';
+
+        const sesion = { usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol, ts: Date.now() };
+        let storageOK = true;
+        try { sessionStorage.setItem(KEY, JSON.stringify(sesion)); } catch (e) { storageOK = false; }
+
+        if (!storageOK) {
+          aviso.textContent = 'Tu navegador bloquea el almacenamiento: se usará un enlace de sesión. No cierres esta pestaña.';
+          aviso.classList.remove('hidden');
+          setTimeout(function(){ ir(sesion); }, 900);
+        } else {
+          ir(sesion);
+        }
       } catch (e) {
-        err.textContent = 'Error de verificación: ' + e.message;
+        err.textContent = 'Error de verificación: ' + (e && e.message ? e.message : e);
         err.classList.remove('hidden');
       } finally {
         btn.disabled = false; btn.textContent = 'Ingresar →';
       }
       return false;
+    }
+
+    function ir(sesion) {
+      // Token en hash como respaldo (auth.js lo detecta y migra a sessionStorage)
+      location.href = 'index.mejorado.html#s=' + encodeURIComponent(b64Unicode(JSON.stringify(sesion)));
     }
   </script>
 </body>
