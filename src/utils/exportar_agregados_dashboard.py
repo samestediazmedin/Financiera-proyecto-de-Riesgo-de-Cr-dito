@@ -24,6 +24,7 @@ import pandas as pd
 BASE = Path(__file__).resolve().parents[2]
 SFC = BASE / "data" / "processed" / "sfc_limpio.csv"
 ICETEX = BASE / "data" / "processed" / "icetex_limpio.csv"
+IEFIC = BASE / "data" / "raw" / "BANREP-IEFIC-2017-2018.xml"
 OUT = BASE / "proyecto_riesgo_express" / "datos_sistema.js"
 
 N_CORTES = 24
@@ -75,8 +76,21 @@ def generar_datos() -> dict:
             icetex_top = [{"departamento": str(r.departamento).strip().title(),
                            "pctVencida": round(r.indicador_cartera_vencida * 100, 2)} for r in geo.itertuples()]
 
+    iefic = {"total": 0, "vars": []}
+    try:
+        import sys as _sys
+        if str(BASE) not in _sys.path:
+            _sys.path.insert(0, str(BASE))
+        from src.utils.loaders import load_iefic_codebook
+        cb = load_iefic_codebook()
+        iefic["total"] = int(len(cb))
+        iefic["vars"] = [{"n": str(r.name), "l": (str(r.label) or str(r.question) or "")[:90]}
+                         for r in cb.itertuples()]
+    except Exception as e:
+        print("IEFIC omitida:", e)
+
     return {"serieVencida": serie, "topProductos": top_productos, "calificacion": calificacion,
-            "icetexTop": icetex_top,
+            "icetexTop": icetex_top, "iefic": iefic,
             "meta": {"desde": pd.Timestamp(cortes[0]).strftime("%Y-%m"), "hasta": pd.Timestamp(cortes[-1]).strftime("%Y-%m"),
                      "filasSfc": int(len(df)), "generado": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}}
 

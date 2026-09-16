@@ -1,4 +1,4 @@
-﻿"""API JSON en vivo desde data/processed — base de datos del proyecto.
+"""API JSON en vivo desde data/processed — base de datos del proyecto.
 
 Servidor stdlib (sin dependencias extra) que expone:
 
@@ -19,14 +19,14 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))
 
-from src.utils.exportar_agregados_dashboard import SFC, ICETEX, generar_datos
+from src.utils.exportar_agregados_dashboard import SFC, ICETEX, IEFIC, generar_datos
 
 _cache = {"datos": None, "firma": None}
 
 
 def datos_frescos() -> dict:
     """Devuelve agregados; recalcula si alg\u00fan CSV cambi\u00f3 en disco."""
-    firma = (SFC.stat().st_mtime, ICETEX.stat().st_mtime if ICETEX.exists() else 0)
+    firma = (SFC.stat().st_mtime, ICETEX.stat().st_mtime if ICETEX.exists() else 0, IEFIC.stat().st_mtime if IEFIC.exists() else 0)
     if _cache["datos"] is None or _cache["firma"] != firma:
         _cache["datos"] = generar_datos()
         _cache["firma"] = firma
