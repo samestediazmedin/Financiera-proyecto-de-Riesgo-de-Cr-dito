@@ -447,6 +447,17 @@
                     <p class="text-xs text-slate-400 mb-3">Crédito educativo — último corte</p>
                     <div class="h-64"><canvas id="chartIcetex"></canvas></div>
                 </div>
+
+                <div class="glass-panel rounded-2xl p-6 shadow-lg lg:col-span-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h3 class="text-base font-bold text-white mb-1">IEFIC — Diccionario de variables (Banco de la República)</h3>
+                            <p class="text-xs text-slate-400">Encuesta de inclusión financiera 2017–2018 · <span id="iefic-conteo" class="font-mono text-blue-400">0</span> variables</p>
+                        </div>
+                        <input id="iefic-buscar" oninput="renderIefic()" placeholder="Buscar variable o etiqueta…" class="w-full sm:w-72 px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    <div id="iefic-lista" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1"></div>
+                </div>
             </div>
         </div>
 
@@ -779,7 +790,8 @@
                 if(performanceChartInstance) performanceChartInstance.destroy();
                 const tieneSFC=(typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
                 if(tieneSFC){
-                    const s=DATOS_SISTEMA.serieVencida;
+                    renderIefic();
+            const s=DATOS_SISTEMA.serieVencida;
                     const delta=(s[s.length-1].total - s[0].total);
                     document.getElementById('perf-badge').textContent=(delta>=0?'+':'')+delta.toFixed(2)+' pts '+s[0].mes.slice(2)+'→'+s[s.length-1].mes.slice(2);
                     performanceChartInstance=new Chart(ctxPerf,{type:'line',
@@ -1025,6 +1037,18 @@
         // ============================================================
         // Sistema Real (SFC/ICETEX)
         // ============================================================
+        function renderIefic(){
+            var d = (typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.iefic;
+            var lista = document.getElementById('iefic-lista');
+            if(!d || !lista || !d.vars || !d.vars.length){ if(lista) lista.innerHTML='<p class="text-sm text-slate-500">Sin datos IEFIC.</p>'; return; }
+            var q=(document.getElementById('iefic-buscar').value||'').toLowerCase();
+            document.getElementById('iefic-conteo').textContent=d.total;
+            var fil=d.vars.filter(function(v){ return !q || v.n.toLowerCase().indexOf(q)>=0 || v.l.toLowerCase().indexOf(q)>=0; });
+            lista.innerHTML = fil.slice(0,120).map(function(v){
+                return '<div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800"><span class="font-mono text-xs text-blue-400">'+v.n+'</span><p class="text-xs text-slate-300 mt-0.5 leading-snug">'+v.l+'</p></div>';
+            }).join('') || '<p class="text-sm text-slate-500">Sin resultados.</p>';
+        }
+
         function renderSistema(){
             const tieneDatos=(typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
             document.getElementById('sis-empty').classList.toggle('hidden', tieneDatos);
