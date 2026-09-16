@@ -21,3 +21,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Secretos (nunca commitear)
+.env
+.env.*
+*.key
