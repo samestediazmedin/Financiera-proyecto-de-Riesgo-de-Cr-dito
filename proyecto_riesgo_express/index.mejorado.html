@@ -1,580 +1,1154 @@
 ﻿<!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard de Riesgo de Crédito — v3 BI</title>
-  <script src="auth.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root { --color-bg:#0f172a; --color-surface:#1e293b; --color-border:#334155; --radius-card:16px; }
-    .token-badge { font-variant-numeric: tabular-nums; }
-    .tab-btn.active { color:#34d399; border-bottom:2px solid #34d399; font-weight:700; }
-    .donut-slice { cursor:pointer; transition:transform .25s cubic-bezier(.4,0,.2,1), opacity .25s ease, filter .25s ease; transform-origin:0 0; outline:none; }
-    .donut-slice:hover { transform:scale(1.04); filter:drop-shadow(0 4px 12px rgba(0,0,0,.3)); }
-    .donut-slice.active { transform:scale(1.06); filter:drop-shadow(0 6px 16px rgba(52,211,153,.4)); }
-    .donut-slice.dimmed { opacity:.3; }
-    .toast { transition:all .3s; opacity:0; transform:translateY(8px); }
-    .toast.on { opacity:1; transform:none; }
-    ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:rgba(15,23,42,.6)}::-webkit-scrollbar-thumb{background:rgba(100,116,139,.5);border-radius:4px}
-  </style>
-</head>
-<body class="bg-[var(--color-bg)] text-slate-100 font-sans antialiased">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskPulse — Plataforma de Análisis de Riesgo y Cartera de Crédito</title>
 
-  <header class="sticky top-0 z-30 backdrop-blur-xl bg-slate-900/80 border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap gap-3 justify-between items-center">
-      <div class="flex gap-3 items-center">
-        <div class="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black">◈</div>
-        <div>
-          <h1 class="text-lg font-bold leading-none">Dashboard de Riesgo <span class="text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 align-middle">v3 BI</span></h1>
-          <p class="text-xs text-slate-400">Cartera demo + datos reales SFC/ICETEX</p>
-        </div>
-      </div>
-      <nav class="flex flex-wrap items-center gap-1 order-3 sm:order-2 w-full sm:w-auto justify-center">
-        <button onclick="switchTab('cartera')" id="nav-cartera" class="tab-btn active px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">📊 Cartera</button>
-        <button onclick="switchTab('simulador')" id="nav-simulador" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">🧪 Simulador</button>
-        <button onclick="switchTab('sistema')" id="nav-sistema" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">🏦 Sistema Real</button>
-      </nav>
-      <div class="flex gap-2 items-center order-2 sm:order-3">
-        <div id="user-chip" class="hidden flex items-center gap-2"></div>
-        <button onclick="logout()" title="Cerrar sesión" class="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-rose-500/20 hover:border-rose-500/40 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition" style="color:#cbd5e1">⏻ Salir</button>
-      </div>
-    </div>
-  </header>
+    <script src="auth.js"></script>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-    <div id="tab-content-cartera" class="space-y-6">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-      <div class="flex flex-wrap gap-2 items-center justify-between">
-        <div class="flex bg-slate-800 rounded-full p-1 border border-slate-700">
-          <button onclick="filtrarRiesgo('todos')" id="f-todos" class="filtro-btn bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-xs font-bold">Todos</button>
-          <button onclick="filtrarRiesgo('Alto')" id="f-alto" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Alto</button>
-          <button onclick="filtrarRiesgo('Medio')" id="f-medio" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Medio</button>
-          <button onclick="filtrarRiesgo('Bajo')" id="f-bajo" class="filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white">Bajo</button>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="exportarCSV()" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition">⬇ Exportar CSV</button>
-          <button onclick="automatizarAlertas()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-lg shadow-emerald-500/20 transition">⚡ Automatizar</button>
-        </div>
-      </div>
-
-      <section aria-labelledby="kpis-title" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <h2 id="kpis-title" class="sr-only">Indicadores clave</h2>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <div class="flex justify-between items-start">
-            <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Exposición total</span><span class="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-xs">💰</span>
-          </div>
-          <p id="kpi-monto" class="token-badge text-2xl font-extrabold mt-2">$0</p>
-          <p class="text-xs text-slate-500 mt-1"><span class="text-emerald-400">▲ 6 clientes</span> en cartera</p>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <div class="flex justify-between items-start">
-            <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Pérdida esperada (EL)</span><span class="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-xs">⚠️</span>
-          </div>
-          <p id="kpi-perdida" class="token-badge text-2xl font-extrabold mt-2 text-rose-400">$0</p>
-          <p id="kpi-perdida-pct" class="text-xs text-slate-500 mt-1">— % de exposición</p>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <div class="flex justify-between items-start">
-            <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Alto riesgo</span><span class="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-xs">🔴</span>
-          </div>
-          <p id="kpi-alto-riesgo" class="token-badge text-2xl font-extrabold mt-2 text-rose-500">0</p>
-          <p class="text-xs text-slate-500 mt-1">requieren acción inmediata</p>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <div class="flex justify-between items-start">
-            <span class="text-[11px] font-bold tracking-widest uppercase text-slate-400">Score promedio</span><span class="w-7 h-7 rounded-lg bg-sky-500/15 flex items-center justify-center text-xs">⭐</span>
-          </div>
-          <p id="kpi-score" class="token-badge text-2xl font-extrabold mt-2 text-sky-400">0 pts</p>
-          <p class="text-xs text-slate-500 mt-1">escala 0–1000</p>
-        </div>
-      </section>
-      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div class="lg:col-span-7 bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] flex flex-col items-center">
-          <div class="w-full flex items-start justify-between mb-2">
-            <div>
-              <h3 class="text-sm font-semibold text-slate-200">Exposición por nivel de riesgo</h3>
-              <p class="text-xs text-slate-500">Haz clic en un segmento o leyenda para el detalle</p>
-            </div>
-            <button onclick="selectNivel(null)" id="btn-reset-donut" class="hidden text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">↺ Restablecer</button>
-          </div>
-          <div class="relative w-full max-w-[300px] aspect-square my-1">
-            <svg id="donut" viewBox="-160 -160 320 320" class="w-full h-full overflow-visible select-none">
-              <g id="donut-slices"></g><g id="donut-labels"></g>
-              <g class="text-center">
-                <text class="text-xs fill-slate-400" y="-18" text-anchor="middle" id="donut-center-title">Cartera total</text>
-                <text class="text-xl font-extrabold fill-white font-mono" y="10" text-anchor="middle" id="donut-center-value">$0</text>
-                <text class="text-xs fill-slate-400" y="32" text-anchor="middle" id="donut-center-sub">3 niveles</text>
-              </g>
-            </svg>
-          </div>
-          <div class="w-full flex flex-wrap justify-center gap-2 mt-3" id="legend-container"></div>
-        </div>
-
-        <div class="lg:col-span-5 bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)] flex flex-col">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
-            <div class="flex items-center gap-3">
-              <div class="w-4 h-4 rounded-md bg-emerald-500" id="drawer-color"></div>
-              <div>
-                <h3 class="text-sm font-bold" id="drawer-name">Resumen general</h3>
-                <p class="text-xs text-slate-500" id="drawer-sub">Selecciona un nivel en la dona</p>
-              </div>
-            </div>
-            <span class="px-2 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 text-emerald-400" id="drawer-share">100%</span>
-          </div>
-          <div class="grid grid-cols-2 gap-3 mt-3">
-            <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span class="text-xs text-slate-500 block">Monto expuesto</span>
-              <span class="text-base font-bold font-mono" id="drawer-val">$0</span>
-            </div>
-            <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span class="text-xs text-slate-500 block">Clientes</span>
-              <span class="text-base font-bold font-mono" id="drawer-n">0</span>
-            </div>
-          </div>
-          <div class="mt-3">
-            <h4 class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Composición</h4>
-            <div class="space-y-2.5 max-h-[240px] overflow-y-auto pr-1" id="drawer-list"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-3">Monto expuesto por cliente</h3>
-          <div class="h-56"><canvas id="chartMonto" role="img" aria-label="Monto expuesto por cliente"></canvas></div>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-3">Score vs Mora (tamaño = monto)</h3>
-          <div class="h-56"><canvas id="chartBubble" role="img" aria-label="Score versus días de mora"></canvas></div>
-        </div>
-      </section>
-
-      <section id="auto-panel" class="hidden bg-[var(--color-surface)] p-6 rounded-[var(--radius-card)] border border-emerald-500/30 shadow-xl" aria-live="polite">
-        <h3 class="text-base font-bold text-emerald-400">⚡ Resultado de la automatización</h3>
-        <p class="text-sm text-slate-300 mt-1"><span id="auto-alertas" class="font-bold text-white">0</span> alertas · Monto en riesgo <span id="auto-monto" class="font-bold text-rose-400">$0</span></p>
-        <ul id="auto-lista" class="mt-3 space-y-2"></ul>
-        <p class="text-xs text-slate-500 mt-3">Reglas: ≥90d → jurídico · ≥30d → preventiva · prob ≥40% → reestructuración · resto → monitoreo.</p>
-      </section>
-
-      <section class="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] overflow-hidden">
-        <div class="p-4 sm:p-5 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center border-b border-slate-700/50">
-          <h3 class="text-sm font-semibold">Consolidado de cartera</h3>
-          <div class="flex gap-2 w-full sm:w-auto">
-            <input id="buscar" oninput="filtrarTabla()" placeholder="Buscar ID o nombre…" class="flex-1 sm:w-64 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
-            <select id="orden" onchange="ordenarTabla()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm">
-              <option value="monto-desc">Monto ↓</option><option value="monto-asc">Monto ↑</option>
-              <option value="score-desc">Score ↓</option><option value="mora-desc">Mora ↓</option><option value="riesgo">Riesgo Alto 1º</option>
-            </select>
-          </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm min-w-[980px]">
-            <thead class="bg-slate-800/95">
-              <tr class="text-xs text-slate-400 border-b border-slate-700">
-                <th scope="col" class="px-4 py-3 font-semibold">ID</th><th scope="col" class="px-4 py-3 font-semibold">Nombre</th>
-                <th scope="col" class="px-4 py-3 font-semibold text-right">Monto</th><th scope="col" class="px-4 py-3 font-semibold">Plazo</th>
-                <th scope="col" class="px-4 py-3 font-semibold">Tasa</th><th scope="col" class="px-4 py-3 font-semibold">Mora</th>
-                <th scope="col" class="px-4 py-3 font-semibold">Score</th><th scope="col" class="px-4 py-3 font-semibold">Prob.</th>
-                <th scope="col" class="px-4 py-3 font-semibold">Riesgo</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-cuerpo" class="divide-y divide-slate-700/40"></tbody>
-          </table>
-        </div>
-        <div id="tabla-vacia" class="hidden p-8 text-center text-sm text-slate-500">Sin resultados para el filtro actual.</div>
-        <div class="px-4 py-3 border-t border-slate-700/50 flex justify-between items-center text-xs text-slate-500">
-          <span id="tabla-conteo">6 registros</span><span>tokens slate/emerald · spacing 4/8 · lint OpenPencil</span>
-        </div>
-      </section>
-    </div>
-
-    <div id="tab-content-simulador" class="hidden space-y-6">
-      <div class="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] p-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-700/60">
-          <div>
-            <h2 class="text-xl font-bold">🧪 Simulador de Estrés Crediticio</h2>
-            <p class="text-sm text-slate-400">Escenarios what-if sobre la cartera: PD, recuperación y VaR por Monte Carlo.</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button onclick="aplicarPreset('base')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium">Escenario Base</button>
-            <button onclick="aplicarPreset('estres')" class="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-medium">⚡ Estrés (PD ×1.5)</button>
-            <button onclick="aplicarPreset('crisis')" class="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium">📉 Crisis (PD ×2)</button>
-            <button onclick="aplicarPreset('recuperacion')" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-medium">🚀 Recuperación (PD ×0.7)</button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-          <div class="lg:col-span-5 space-y-6">
-            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Parámetros del escenario</h3>
-            <div class="space-y-2">
-              <div class="flex justify-between text-sm">
-                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-500"></span> Multiplicador de PD</span>
-                <span class="font-mono font-bold text-sky-400" id="sim-mult-val">×1.0</span>
-              </div>
-              <input type="range" id="sim-mult" min="5" max="20" value="10" oninput="updateSim()" class="w-full accent-sky-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
-              <p class="text-[11px] text-slate-500">Escala la probabilidad de incumplimiento de todos los clientes (0.5× – 2.0×).</p>
-            </div>
-            <div class="space-y-2">
-              <div class="flex justify-between text-sm">
-                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Tasa de recuperación</span>
-                <span class="font-mono font-bold text-emerald-400" id="sim-rec-val">40%</span>
-              </div>
-              <input type="range" id="sim-rec" min="0" max="80" value="40" oninput="updateSim()" class="w-full accent-emerald-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
-              <p class="text-[11px] text-slate-500">Fracción del monto recuperada tras un incumplimiento (LGD = 1 − recuperación).</p>
-            </div>
-            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
-              <div class="flex justify-between text-xs text-slate-400"><span>Ingreso anual esperado (intereses):</span><span class="font-mono font-bold text-white" id="sim-ingreso">$0</span></div>
-              <div class="flex justify-between text-xs text-slate-400"><span>Retorno ajustado aprox. (ingreso − EL) / VaR:</span><span class="font-mono font-bold text-sky-400" id="sim-raroc">—</span></div>
-            </div>
-          </div>
-
-          <div class="lg:col-span-7 space-y-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span class="text-xs text-slate-500 block">EL Base</span>
-                <span class="text-lg font-bold font-mono block mt-1" id="sim-el-base">$0</span>
-              </div>
-              <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span class="text-xs text-slate-500 block">EL Escenario</span>
-                <span class="text-lg font-bold font-mono block mt-1 text-rose-400" id="sim-el-sim">$0</span>
-                <span class="text-[11px] font-mono" id="sim-el-diff">—</span>
-              </div>
-              <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span class="text-xs text-slate-500 block">VaR 95% (MC)</span>
-                <span class="text-lg font-bold font-mono block mt-1 text-amber-400" id="sim-var">$0</span>
-                <span class="text-[11px] text-slate-500">2.000 simulaciones</span>
-              </div>
-              <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span class="text-xs text-slate-500 block">Expected Shortfall</span>
-                <span class="text-lg font-bold font-mono block mt-1 text-rose-500" id="sim-es">$0</span>
-                <span class="text-[11px] text-slate-500">media peor 5%</span>
-              </div>
-            </div>
-            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800">
-              <h4 class="text-xs font-semibold text-slate-400 mb-2">Pérdida esperada por cliente: base vs escenario</h4>
-              <div class="h-56"><canvas id="chartEL" role="img" aria-label="Pérdida esperada por cliente base versus escenario"></canvas></div>
-            </div>
-            <p class="text-[11px] text-slate-500 leading-relaxed">Metodología (demo académica): EL = Σ monto × PD′ × (1 − recuperación) con PD′ = PD × multiplicador. VaR 95 y ES: Monte Carlo con 2.000 iteraciones (Bernoulli por cliente, semilla fija para reproducibilidad). Simplificaciones: sin correlaciones de default ni descuento temporal.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-content-sistema" class="hidden space-y-6">
-      <div class="bg-[var(--color-surface)] rounded-[var(--radius-card)] border border-[var(--color-border)] p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 class="text-xl font-bold">🏦 Sistema Financiero Colombiano (datos reales)</h2>
-            <p class="text-sm text-slate-400">Agregados desde <code class="text-xs bg-slate-800 px-1.5 py-0.5 rounded">data/processed/</code> — Superfinanciera e ICETEX.</p>
-          </div>
-          <span id="sis-meta" class="text-xs font-mono text-slate-400 bg-slate-900 border border-slate-800 rounded-full px-3 py-1.5"></span>
-        </div>
-      </div>
-      <div id="sis-empty" class="hidden bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm rounded-xl px-4 py-3">
-        No se encontró <code>datos_sistema.js</code>. Ejecuta <code class="bg-slate-800 px-1.5 py-0.5 rounded">python src/utils/exportar_agregados_dashboard.py</code> con el venv del proyecto.
-      </div>
-      <div id="sis-content" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-1">% Cartera vencida del sistema</h3>
-          <p class="text-xs text-slate-500 mb-3">Bancos vs entidades no bancarias — últimos 24 cortes</p>
-          <div class="h-64"><canvas id="chartSerie" role="img" aria-label="Serie de porcentaje de cartera vencida"></canvas></div>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-1">Top productos por saldo</h3>
-          <p class="text-xs text-slate-500 mb-3">Último corte — miles de millones COP · color = % vencida</p>
-          <div class="h-64"><canvas id="chartProductos" role="img" aria-label="Top productos por saldo"></canvas></div>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-1">Calificación de riesgo A–E</h3>
-          <p class="text-xs text-slate-500 mb-3">Distribución de saldos en el último corte</p>
-          <div class="h-64 flex items-center justify-center"><div class="w-56 h-56"><canvas id="chartCalificacion" role="img" aria-label="Distribución por calificación de riesgo"></canvas></div></div>
-        </div>
-        <div class="bg-[var(--color-surface)] p-5 rounded-[var(--radius-card)] border border-[var(--color-border)]">
-          <h3 class="text-sm font-semibold text-slate-200 mb-1">ICETEX: departamentos con más cartera vencida</h3>
-          <p class="text-xs text-slate-500 mb-3">% de cartera vencida en crédito educativo — último corte</p>
-          <div class="h-64"><canvas id="chartIcetex" role="img" aria-label="Departamentos con más cartera vencida ICETEX"></canvas></div>
-        </div>
-      </div>
-      <p class="text-[11px] text-slate-500">Fuente: Superintendencia Financiera (distribución de cartera por producto) e ICETEX (comportamiento de cartera) — datos descargados y limpiados en <code>data/</code>. Agregación: <code>src/utils/exportar_agregados_dashboard.py</code>.</p>
-    </div>
-
-    <footer class="text-center text-slate-600 text-xs py-4 mt-2">
-      v3 BI — dona interactiva + simulador VaR + datos reales · integrado de RiskPulse · <a href="index.html" class="underline hover:text-slate-400">ver v1</a>
-    </footer>
-  </main>
-
-  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  <script src="datos.js"></script>
-  <script src="datos_sistema.js"></script>
-  <script>
-    'use strict';
-    const fmtCOP = new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
-    const charts = {};
-    let nivelSel = null, filtroActual='todos', textoBusqueda='', ordenActual='monto-desc';
-    let simIniciado=false, sisIniciado=false;
-
-    function showToast(msg, type){
-      const c=document.getElementById('toast-container');
-      const t=document.createElement('div');
-      const bg = type==='error'?'bg-rose-600':type==='warn'?'bg-amber-600':'bg-emerald-600';
-      t.className=bg+' text-white px-4 py-3 rounded-xl shadow-xl text-sm font-medium toast pointer-events-auto';
-      t.textContent=msg; c.appendChild(t);
-      requestAnimationFrame(function(){ t.classList.add('on'); });
-      setTimeout(function(){ t.classList.remove('on'); setTimeout(function(){ t.remove(); },300); },3200);
-    }
-
-    function switchTab(id){
-      ['cartera','simulador','sistema'].forEach(function(t){
-        document.getElementById('tab-content-'+t).classList.toggle('hidden', t!==id);
-        const b=document.getElementById('nav-'+t);
-        b.classList.toggle('active', t===id);
-        b.classList.toggle('text-slate-300', t===id);
-        b.classList.toggle('text-slate-400', t!==id);
-      });
-      if(id==='simulador' && !simIniciado){ simIniciado=true; updateSim(); }
-      if(id==='sistema' && !sisIniciado){ sisIniciado=true; renderSistema(); }
-    }
-
-    const totalMonto = baseDatosConsolidada.reduce(function(a,c){ return a+c.monto; },0);
-    const perdidaEsperada = baseDatosConsolidada.reduce(function(a,c){ return a+c.monto*c.probDefault; },0);
-    document.getElementById('kpi-monto').innerText = fmtCOP.format(totalMonto);
-    document.getElementById('kpi-perdida').innerText = fmtCOP.format(perdidaEsperada);
-    document.getElementById('kpi-perdida-pct').innerText = (perdidaEsperada/totalMonto*100).toFixed(1)+'% de exposición';
-    document.getElementById('kpi-alto-riesgo').innerText = baseDatosConsolidada.filter(function(c){ return c.estado==='Alto'; }).length;
-    document.getElementById('kpi-score').innerText = Math.round(baseDatosConsolidada.reduce(function(a,c){ return a+c.score; },0)/baseDatosConsolidada.length)+' pts';
-
-    const NIVELES = [ {key:'Bajo',color:'#10b981'}, {key:'Medio',color:'#f59e0b'}, {key:'Alto',color:'#f43f5e'} ];
-    const hexEstado = { Alto:'#f43f5e', Medio:'#f59e0b', Bajo:'#10b981' };
-    const montoNivel = function(n){ return baseDatosConsolidada.filter(function(c){ return c.estado===n; }).reduce(function(a,c){ return a+c.monto; },0); };
-
-    function getArcPath(sa, ea, ri, ro){
-      const sin=Math.sin, cos=Math.cos;
-      const x1=ro*cos(sa), y1=ro*sin(sa), x2=ro*cos(ea), y2=ro*sin(ea);
-      const x3=ri*cos(ea), y3=ri*sin(ea), x4=ri*cos(sa), y4=ri*sin(sa);
-      const laf = (ea-sa)>Math.PI ? 1:0;
-      return 'M '+x1+' '+y1+' A '+ro+' '+ro+' 0 '+laf+' 1 '+x2+' '+y2+' L '+x3+' '+y3+' A '+ri+' '+ri+' 0 '+laf+' 0 '+x4+' '+y4+' Z';
-    }
-
-    function renderDonut(){
-      const sg=document.getElementById('donut-slices'), lg=document.getElementById('donut-labels'), lc=document.getElementById('legend-container');
-      sg.innerHTML=''; lg.innerHTML=''; lc.innerHTML='';
-      const ro=130, ri=90, lr=150, gap=0.035;
-      let ang=-Math.PI/2;
-      NIVELES.forEach(function(nv){
-        const val=montoNivel(nv.key), pct=totalMonto?val/totalMonto*100:0;
-        if(pct===0) return;
-        const sliceAng=pct/100*Math.PI*2, sa=ang+gap/2, ea=ang+sliceAng-gap/2;
-        const p=document.createElementNS('http://www.w3.org/2000/svg','path');
-        p.setAttribute('d', getArcPath(sa,ea,ri,ro));
-        p.setAttribute('fill', nv.color);
-        p.setAttribute('class', 'donut-slice '+((nivelSel&&nivelSel!==nv.key)?'dimmed':'')+' '+((nivelSel===nv.key)?'active':''));
-        p.onclick=function(){ selectNivel(nv.key); };
-        sg.appendChild(p);
-        if(pct>=5){
-          const mid=(sa+ea)/2, tx=lr*Math.cos(mid), ty=lr*Math.sin(mid);
-          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-          t.setAttribute('x',tx); t.setAttribute('y',ty);
-          t.setAttribute('class','text-xs font-mono font-semibold fill-slate-300 pointer-events-none');
-          t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','middle');
-          t.textContent=pct.toFixed(0)+'%';
-          lg.appendChild(t);
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff', 100: '#e0edff', 200: '#c7ddff',
+                            500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a',
+                        },
+                        risk: { low: '#10b981', medium: '#f59e0b', high: '#ef4444', alt: '#8b5cf6' }
+                    }
+                }
+            }
         }
-        const pill=document.createElement('button');
-        pill.className='px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-2 transition '+((nivelSel===nv.key)?'bg-slate-800 border-emerald-500 text-white':'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700');
-        pill.onclick=function(){ selectNivel(nv.key); };
-        pill.innerHTML='<span class="w-2.5 h-2.5 rounded-full" style="background:'+nv.color+'"></span> '+nv.key+' <span class="text-slate-500 font-mono text-[10px]">'+pct.toFixed(1)+'%</span>';
-        lc.appendChild(pill);
-        ang+=sliceAng;
-      });
-      const sel = nivelSel ? baseDatosConsolidada.filter(function(c){ return c.estado===nivelSel; }) : null;
-      document.getElementById('donut-center-title').textContent = nivelSel ? 'Riesgo '+nivelSel : 'Cartera total';
-      document.getElementById('donut-center-value').textContent = fmtCOP.format(nivelSel?montoNivel(nivelSel):totalMonto);
-      document.getElementById('donut-center-sub').textContent = nivelSel ? sel.length+' clientes' : '3 niveles';
-      document.getElementById('btn-reset-donut').classList.toggle('hidden', !nivelSel);
-    }
+    </script>
 
-    function renderDrawer(){
-      const colorEl=document.getElementById('drawer-color'), nameEl=document.getElementById('drawer-name'), subEl=document.getElementById('drawer-sub');
-      const shareEl=document.getElementById('drawer-share'), valEl=document.getElementById('drawer-val'), nEl=document.getElementById('drawer-n'), listEl=document.getElementById('drawer-list');
-      if(!nivelSel){
-        colorEl.style.background='#34d399';
-        nameEl.textContent='Resumen general'; subEl.textContent='Top clientes de toda la cartera';
-        shareEl.textContent='100%'; valEl.textContent=fmtCOP.format(totalMonto); nEl.textContent=baseDatosConsolidada.length;
-        const top=baseDatosConsolidada.slice().sort(function(a,b){ return b.monto-a.monto; }).slice(0,5);
-        listEl.innerHTML=top.map(function(c){
-          const pct=c.monto/totalMonto*100;
-          return '<div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between"><div><span class="font-semibold text-white text-sm block">'+c.nombre+'</span><span class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full" style="background:'+hexEstado[c.estado]+'"></span> '+c.id+' · '+c.estado+'</span></div><div class="text-right"><span class="font-mono font-bold text-white text-sm block">'+fmtCOP.format(c.monto)+'</span><span class="text-[11px] text-slate-500 font-mono">'+pct.toFixed(1)+'%</span></div></div>';
-        }).join('');
-        return;
-      }
-      const clientes=baseDatosConsolidada.filter(function(c){ return c.estado===nivelSel; });
-      const val=montoNivel(nivelSel);
-      const nv=NIVELES.find(function(n){ return n.key===nivelSel; });
-      colorEl.style.background=nv.color;
-      nameEl.textContent='Riesgo '+nivelSel; subEl.textContent='Clientes en esta banda';
-      shareEl.textContent=(val/totalMonto*100).toFixed(1)+'%'; valEl.textContent=fmtCOP.format(val); nEl.textContent=clientes.length;
-      listEl.innerHTML=clientes.slice().sort(function(a,b){ return b.monto-a.monto; }).map(function(c){
-        const pct=val?c.monto/val*100:0;
-        return '<div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5"><div class="flex items-center justify-between"><span class="font-semibold text-white text-sm">'+c.nombre+'</span><span class="font-mono font-bold text-white text-sm">'+fmtCOP.format(c.monto)+'</span></div><div class="flex justify-between text-[11px] text-slate-500"><span>'+c.id+' · PD '+(c.probDefault*100).toFixed(0)+'% · score '+c.score+'</span><span class="font-mono">'+pct.toFixed(1)+'% de la banda</span></div><div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:'+pct+'%;background:'+nv.color+'"></div></div></div>';
-      }).join('');
-    }
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    function selectNivel(k){ nivelSel = (nivelSel===k)?null:k; renderDonut(); renderDrawer(); }
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
 
-    const colorEstado = { Alto:'bg-rose-500/10 text-rose-400 border-rose-500/20', Medio:'bg-amber-500/10 text-amber-400 border-amber-500/20', Bajo:'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
-    function aplicarFiltros(){
-      let data=baseDatosConsolidada.slice();
-      if(filtroActual!=='todos') data=data.filter(function(c){ return c.estado===filtroActual; });
-      if(textoBusqueda){ const q=textoBusqueda.toLowerCase(); data=data.filter(function(c){ return c.id.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q); }); }
-      if(ordenActual==='monto-desc') data.sort(function(a,b){ return b.monto-a.monto; });
-      if(ordenActual==='monto-asc') data.sort(function(a,b){ return a.monto-b.monto; });
-      if(ordenActual==='score-desc') data.sort(function(a,b){ return b.score-a.score; });
-      if(ordenActual==='mora-desc') data.sort(function(a,b){ return b.moraDias-a.moraDias; });
-      if(ordenActual==='riesgo'){ const o={Alto:0,Medio:1,Bajo:2}; data.sort(function(a,b){ return o[a.estado]-o[b.estado]; }); }
-      renderTabla(data);
-    }
-    function renderTabla(data){
-      const tbody=document.getElementById('tabla-cuerpo'), vacia=document.getElementById('tabla-vacia');
-      tbody.innerHTML='';
-      if(!data.length){ vacia.classList.remove('hidden'); document.getElementById('tabla-conteo').innerText='0 registros'; return; }
-      vacia.classList.add('hidden');
-      document.getElementById('tabla-conteo').innerText=data.length+' registro'+((data.length!==1)?'s':'');
-      data.forEach(function(item){
-        const tr=document.createElement('tr');
-        tr.className='hover:bg-slate-700/30 transition-colors';
-        tr.innerHTML='<td class="px-4 py-3 font-mono text-slate-400 text-xs">'+item.id+'</td><td class="px-4 py-3 font-medium text-white">'+item.nombre+'</td><td class="px-4 py-3 text-right tabular-nums">'+fmtCOP.format(item.monto)+'</td><td class="px-4 py-3">'+item.plazo+' m</td><td class="px-4 py-3">'+item.tasa.toFixed(1)+'%</td><td class="px-4 py-3">'+item.moraDias+' d</td><td class="px-4 py-3">'+item.score+'</td><td class="px-4 py-3">'+(item.probDefault*100).toFixed(0)+'%</td><td class="px-4 py-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold border '+colorEstado[item.estado]+'">'+item.estado+'</span></td>';
-        tbody.appendChild(tr);
-      });
-    }
-    function filtrarRiesgo(n){
-      filtroActual=n;
-      document.querySelectorAll('.filtro-btn').forEach(function(b){ b.className='filtro-btn text-slate-400 px-3 py-1.5 rounded-full text-xs font-semibold hover:text-white'; });
-      const id=n==='todos'?'f-todos':(n==='Alto'?'f-alto':(n==='Medio'?'f-medio':'f-bajo'));
-      document.getElementById(id).className='filtro-btn bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-xs font-bold';
-      aplicarFiltros();
-    }
-    function filtrarTabla(){ textoBusqueda=document.getElementById('buscar').value; aplicarFiltros(); }
-    function ordenarTabla(){ ordenActual=document.getElementById('orden').value; aplicarFiltros(); }
-    function exportarCSV(){
-      const headers=['ID','Nombre','Monto','Plazo','Tasa','Mora','Score','Prob','Riesgo'];
-      const rows=baseDatosConsolidada.map(function(c){ return [c.id,c.nombre,c.monto,c.plazo,c.tasa,c.moraDias,c.score,c.probDefault,c.estado].join(','); });
-      const blob=new Blob([[headers.join(',')].concat(rows).join('\n')],{type:'text/csv'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cartera_riesgo.csv'; a.click(); URL.revokeObjectURL(a.href);
-      showToast('CSV de cartera descargado');
-    }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        body.light .glass-panel { background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(226, 232, 240, 0.8); }
+        body.light { background: #f8fafc !important; color: #0f172a; }
+        body.light .text-white { color: #0f172a !important; }
+        body.light .text-slate-300, body.light .text-slate-400 { color: #475569 !important; }
+        body.light .bg-slate-900\/60, body.light .bg-slate-900\/50, body.light .bg-slate-900\/80, body.light .bg-slate-900\/90, body.light .bg-slate-900\/40 { background-color: rgba(241, 245, 249, 0.9) !important; }
+        body.light .border-slate-800 { border-color: #e2e8f0 !important; }
 
-    function automatizarAlertas(){
-      const criticos=baseDatosConsolidada.filter(function(c){ return c.estado==='Alto'||c.probDefault>=0.3||c.moraDias>=90; });
-      const monto=criticos.reduce(function(a,c){ return a+c.monto; },0);
-      const regla=function(c){ return c.moraDias>=90?'Cobro jurídico':(c.moraDias>=30?'Cobranza preventiva':(c.probDefault>=0.4?'Reestructuración':'Monitoreo intensivo')); };
-      document.getElementById('auto-alertas').innerText=criticos.length;
-      document.getElementById('auto-monto').innerText=fmtCOP.format(monto);
-      document.getElementById('auto-lista').innerHTML=criticos.map(function(c){ return '<li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3"><span class="font-mono text-slate-400 text-xs">'+c.id+'</span><span class="font-medium text-white">'+c.nombre+'</span><span class="text-rose-400 font-semibold tabular-nums">'+fmtCOP.format(c.monto)+'</span><span class="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-full px-3 py-1">'+regla(c)+'</span></li>'; }).join('');
-      document.getElementById('auto-panel').classList.remove('hidden');
-      document.getElementById('auto-panel').scrollIntoView({behavior:'smooth'});
-      showToast(criticos.length+' alertas generadas para Cobranzas');
-    }
-  </script>
-  <script>
-    'use strict';
-    function mulberry32(seed){ return function(){ let t=seed+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
-    const PRESETS={ base:{mult:10,rec:40}, estres:{mult:15,rec:30}, crisis:{mult:20,rec:25}, recuperacion:{mult:7,rec:55} };
-    function aplicarPreset(k){
-      const p=PRESETS[k];
-      document.getElementById('sim-mult').value=p.mult; document.getElementById('sim-rec').value=p.rec;
-      updateSim();
-      showToast('Escenario aplicado: '+({base:'Base',estres:'Estrés PD ×1.5',crisis:'Crisis PD ×2',recuperacion:'Recuperación PD ×0.7'})[k]);
-    }
-    function calcularEL(mult, rec){ const lgd=1-rec/100; return baseDatosConsolidada.reduce(function(a,c){ return a+c.monto*Math.min(c.probDefault*mult,0.99)*lgd; },0); }
-    function monteCarloVaR(mult, rec, n){
-      const lgd=1-rec/100, rnd=mulberry32(42), perdidas=new Array(n);
-      const pds=baseDatosConsolidada.map(function(c){ return Math.min(c.probDefault*mult,0.99); });
-      const montos=baseDatosConsolidada.map(function(c){ return c.monto*lgd; });
-      for(let i=0;i<n;i++){ let s=0; for(let j=0;j<pds.length;j++){ if(rnd()<pds[j]) s+=montos[j]; } perdidas[i]=s; }
-      perdidas.sort(function(a,b){ return a-b; });
-      const idx=Math.floor(n*0.95);
-      const var95=perdidas[idx];
-      const cola=perdidas.slice(idx);
-      const es=cola.reduce(function(a,b){ return a+b; },0)/cola.length;
-      return {var95:var95, es:es};
-    }
-    function updateSim(){
-      const mult=Number(document.getElementById('sim-mult').value)/10;
-      const rec=Number(document.getElementById('sim-rec').value);
-      document.getElementById('sim-mult-val').textContent='×'+mult.toFixed(1);
-      document.getElementById('sim-rec-val').textContent=rec+'%';
-      const elBase=calcularEL(1.0,40), elSim=calcularEL(mult,rec);
-      const mc=monteCarloVaR(mult,rec,2000);
-      document.getElementById('sim-el-base').textContent=fmtCOP.format(elBase);
-      document.getElementById('sim-el-sim').textContent=fmtCOP.format(elSim);
-      const d=elSim-elBase, dp=elBase>0?d/elBase*100:0;
-      const diffEl=document.getElementById('sim-el-diff');
-      diffEl.textContent=(d>=0?'+':'')+fmtCOP.format(d)+' ('+(dp>=0?'+':'')+dp.toFixed(0)+'%)';
-      diffEl.className='text-[11px] font-mono '+((d>=0)?'text-rose-400':'text-emerald-400');
-      document.getElementById('sim-var').textContent=fmtCOP.format(mc.var95);
-      document.getElementById('sim-es').textContent=fmtCOP.format(mc.es);
-      const ingreso=baseDatosConsolidada.reduce(function(a,c){ return a+c.monto*c.tasa/100; },0);
-      document.getElementById('sim-ingreso').textContent=fmtCOP.format(ingreso);
-      document.getElementById('sim-raroc').textContent=(mc.var95>0)?(((ingreso-elSim)/mc.var95).toFixed(2)+'×'):'—';
-      const lgdB=0.6, lgdS=1-rec/100;
-      const baseEL=baseDatosConsolidada.map(function(c){ return c.monto*c.probDefault*lgdB; });
-      const simEL=baseDatosConsolidada.map(function(c){ return c.monto*Math.min(c.probDefault*mult,0.99)*lgdS; });
-      if(charts.el) charts.el.destroy();
-      charts.el=new Chart(document.getElementById('chartEL'),{type:'bar',
-        data:{labels:baseDatosConsolidada.map(function(c){ return c.id; }),datasets:[
-          {label:'EL base',data:baseEL,backgroundColor:'#38bdf8',borderRadius:6},
-          {label:'EL escenario',data:simEL,backgroundColor:'#fb7185',borderRadius:6}]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},tooltip:{callbacks:{label:function(c){ return ' '+c.dataset.label+': '+fmtCOP.format(c.parsed.y); }}}},
-          scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#94a3b8',font:{size:9},callback:function(v){ return '$'+(v/1e6).toFixed(1)+'M'; }},grid:{color:'#334155'}}}}});
-    }
+        .donut-slice { cursor: pointer; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, filter 0.25s ease; transform-origin: 0 0; outline: none; }
+        .donut-slice:hover { transform: scale(1.04); filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3)); }
+        .donut-slice.active { transform: scale(1.06); filter: drop-shadow(0 6px 16px rgba(59, 130, 246, 0.4)); }
+        .donut-slice.dimmed { opacity: 0.3; }
 
-    function renderSistema(){
-      const tieneDatos = (typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
-      document.getElementById('sis-empty').classList.toggle('hidden', tieneDatos);
-      document.getElementById('sis-content').classList.toggle('hidden', !tieneDatos);
-      if(!tieneDatos) return;
-      document.getElementById('sis-meta').textContent=DATOS_SISTEMA.meta.desde+' → '+DATOS_SISTEMA.meta.hasta+' · '+DATOS_SISTEMA.meta.filasSfc.toLocaleString('es-CO')+' filas SFC';
-      charts.serie=new Chart(document.getElementById('chartSerie'),{type:'line',
-        data:{labels:DATOS_SISTEMA.serieVencida.map(function(s){ return s.mes.slice(2); }),datasets:[
-          {label:'Total sistema',data:DATOS_SISTEMA.serieVencida.map(function(s){ return s.total; }),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:2},
-          {label:'Bancos',data:DATOS_SISTEMA.serieVencida.map(function(s){ return s.bancos; }),borderColor:'#34d399',tension:.35,borderWidth:1.5,pointRadius:0},
-          {label:'No bancarias',data:DATOS_SISTEMA.serieVencida.map(function(s){ return s.noBancarias; }),borderColor:'#fb7185',tension:.35,borderWidth:1.5,pointRadius:0}]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},tooltip:{callbacks:{label:function(c){ return ' '+c.dataset.label+': '+c.parsed.y.toFixed(2)+'%'; }}}},
-          scales:{x:{ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:12},grid:{display:false}},y:{ticks:{color:'#94a3b8',font:{size:9},callback:function(v){ return v+'%'; }},grid:{color:'#334155'}}}}});
-      const verde=function(v){ return v<4?'#10b981':(v<7?'#f59e0b':'#f43f5e'); };
-      charts.prod=new Chart(document.getElementById('chartProductos'),{type:'bar',
-        data:{labels:DATOS_SISTEMA.topProductos.map(function(p){ return p.producto; }),datasets:[{data:DATOS_SISTEMA.topProductos.map(function(p){ return p.saldoMilesM; }),backgroundColor:DATOS_SISTEMA.topProductos.map(function(p){ return verde(p.pctVencida); }),borderRadius:6}]},
-        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return ' $'+c.parsed.x.toFixed(1)+' mil millones · '+DATOS_SISTEMA.topProductos[c.dataIndex].pctVencida+'% vencida'; }}}},
-          scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#334155'}},y:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}}}}});
-      const colCal={A:'#10b981',B:'#84cc16',C:'#facc15',D:'#f97316',E:'#dc2626'};
-      charts.calif=new Chart(document.getElementById('chartCalificacion'),{type:'doughnut',
-        data:{labels:DATOS_SISTEMA.calificacion.map(function(c){ return 'Calif. '+c.letra; }),datasets:[{data:DATOS_SISTEMA.calificacion.map(function(c){ return c.saldoMilesM; }),backgroundColor:DATOS_SISTEMA.calificacion.map(function(c){ return colCal[c.letra]; }),borderWidth:0}]},
-        options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
-          plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:function(c){ return ' '+c.label+': $'+c.parsed.toFixed(1)+' mil M ('+DATOS_SISTEMA.calificacion[c.dataIndex].pct+'%)'; }}}}}});
-      charts.icetex=new Chart(document.getElementById('chartIcetex'),{type:'bar',
-        data:{labels:DATOS_SISTEMA.icetexTop.map(function(d){ return d.departamento; }),datasets:[{data:DATOS_SISTEMA.icetexTop.map(function(d){ return d.pctVencida; }),backgroundColor:'#38bdf8',borderRadius:6}]},
-        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return ' '+c.parsed.x.toFixed(2)+'% cartera vencida'; }}}},
-          scales:{x:{ticks:{color:'#94a3b8',font:{size:9},callback:function(v){ return v+'%'; }},grid:{color:'#334155'}},y:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}}}}});
-    }
+        .tab-btn.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; font-weight: 600; }
 
-    charts.monto=new Chart(document.getElementById('chartMonto'),{type:'bar',
-      data:{labels:baseDatosConsolidada.map(function(c){ return c.id; }),datasets:[{label:'Monto (COP)',data:baseDatosConsolidada.map(function(c){ return c.monto; }),backgroundColor:baseDatosConsolidada.map(function(c){ return hexEstado[c.estado]; }),borderRadius:8}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return ' '+fmtCOP.format(c.parsed.y); }}}},
-        scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{ticks:{color:'#94a3b8',callback:function(v){ return '$'+(v/1e6).toFixed(0)+'M'; }},grid:{color:'#334155'}}}}});
-    charts.bubble=new Chart(document.getElementById('chartBubble'),{type:'bubble',
-      data:{datasets:[{label:'Clientes',data:baseDatosConsolidada.map(function(c){ return {x:c.moraDias,y:c.score,r:Math.sqrt(c.monto)/4000}; }),backgroundColor:baseDatosConsolidada.map(function(c){ return hexEstado[c.estado]+'CC'; })}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return ' '+c.raw.x+'d mora · '+c.raw.y+' pts · '+fmtCOP.format(baseDatosConsolidada[c.dataIndex].monto); }}}},
-        scales:{x:{title:{display:true,text:'Días de mora',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{title:{display:true,text:'Score',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{color:'#334155'}}}}});
+        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-    renderDonut(); renderDrawer(); aplicarFiltros();
-  </script>
+        .toast-fx { transition: all .3s; opacity: 0; transform: translateY(8px); }
+        .toast-fx.on { opacity: 1; transform: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased transition-colors duration-300" id="body-root">
+
+    <!-- Navigation Bar -->
+    <nav class="sticky top-0 z-40 w-full glass-panel border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between gap-3 h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/20">
+                        <i class="fa-solid font-mono fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <span class="text-lg font-bold tracking-tight text-white">RiskPulse <span class="text-blue-500 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 font-mono">Riesgo de Crédito</span></span>
+                        <p class="text-xs text-slate-400 hidden sm:block">Gestión Avanzada de Cartera y Análisis de Riesgo — datos SFC/ICETEX</p>
+                    </div>
+                </div>
+
+                <div class="hidden lg:flex items-center space-x-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn active px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high"></i> Dashboard
+                    </button>
+                    <button onclick="switchTab('simulator')" id="nav-simulator" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-sliders"></i> Simulador & Stress
+                    </button>
+                    <button onclick="switchTab('holdings')" id="nav-holdings" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-list-check"></i> Cartera
+                    </button>
+                    <button onclick="switchTab('sistema')" id="nav-sistema" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-building-columns"></i> Sistema Real
+                    </button>
+                    <button onclick="switchTab('ai-advisor')" id="nav-ai-advisor" class="tab-btn px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-purple-400"></i> Asesor IA
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all text-sm" title="Cambiar Tema">
+                        <i class="fa-solid fa-moon"></i><i class="fa-solid fa-sun hidden text-amber-400"></i>
+                    </button>
+                    <div id="user-chip" class="hidden flex items-center gap-2"></div>
+                    <button onclick="logout()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 hover:text-rose-300 text-slate-300 transition-all text-sm" title="Cerrar sesión">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                    <button onclick="exportarCSV()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all text-sm" title="Exportar Cartera CSV">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                    <button onclick="openModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-all shadow-md shadow-blue-600/25 flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Nuevo Cliente</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation Sub-bar -->
+            <div class="flex lg:hidden border-t border-slate-800 bg-slate-900/90 px-2 py-1 justify-around text-xs">
+                <button onclick="switchTab('dashboard')" class="py-2 px-3 text-blue-400 font-medium"><i class="fa-solid fa-gauge-high block text-center mb-1 text-sm"></i> Dashboard</button>
+                <button onclick="switchTab('simulator')" class="py-2 px-3 text-slate-400"><i class="fa-solid fa-sliders block text-center mb-1 text-sm"></i> Simulador</button>
+                <button onclick="switchTab('holdings')" class="py-2 px-3 text-slate-400"><i class="fa-solid fa-list-check block text-center mb-1 text-sm"></i> Cartera</button>
+                <button onclick="switchTab('sistema')" class="py-2 px-3 text-slate-400"><i class="fa-solid fa-building-columns block text-center mb-1 text-sm"></i> Sistema</button>
+                <button onclick="switchTab('ai-advisor')" class="py-2 px-3 text-slate-400"><i class="fa-solid fa-robot block text-center mb-1 text-sm"></i> IA</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Application Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Top Overview Header & Quick KPI Badges -->
+        <div class="glass-panel rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                <div>
+                    <div class="flex items-center gap-3 mb-1">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Distribución & Análisis de Cartera</h1>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Datos Reales
+                        </span>
+                    </div>
+                    <p class="text-slate-400 text-sm">Exposición al riesgo de crédito, pérdida esperada y diversificación por nivel — 3 bases unificadas.</p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
+                    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Valor Total</p>
+                        <p class="text-xl font-bold text-white font-mono mt-0.5" id="kpi-total-val">$0</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">% Vencida</p>
+                        <p class="text-xl font-bold text-emerald-400 font-mono mt-0.5" id="kpi-yield">0%</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Score Riesgo</p>
+                        <p class="text-xl font-bold text-amber-400 font-mono mt-0.5" id="kpi-risk-score">0/100</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Clientes</p>
+                        <p class="text-xl font-bold text-indigo-400 font-mono mt-0.5" id="kpi-cat-count">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- TAB 1: DASHBOARD VIEW -->
+        <div id="tab-content-dashboard" class="space-y-6 animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Interactive SVG Donut -->
+                <div class="lg:col-span-7 glass-panel rounded-2xl p-6 shadow-lg flex flex-col items-center justify-between min-h-[480px]">
+                    <div class="w-full flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Asignación por Nivel de Riesgo</h3>
+                            <p class="text-xs text-slate-400">Haz clic en un segmento o leyenda para ver el detalle</p>
+                        </div>
+                        <button onclick="resetChartSelection()" id="btn-reset-chart" class="hidden text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> Restablecer
+                        </button>
+                    </div>
+
+                    <div class="relative w-full max-w-[320px] aspect-square my-2">
+                        <svg id="donut-chart" viewBox="-160 -160 320 320" class="w-full h-full overflow-visible select-none">
+                            <g id="slices-group"></g>
+                            <g id="labels-group"></g>
+                            <g class="center-text-group text-center">
+                                <text class="center-title text-xs fill-slate-400" y="-18" text-anchor="middle" id="donut-center-title">Cartera Total</text>
+                                <text class="center-value text-2xl font-extrabold fill-white font-mono" y="10" text-anchor="middle" id="donut-center-value">$0</text>
+                                <text class="center-sub text-xs fill-slate-400" y="32" text-anchor="middle" id="donut-center-sub">3 Niveles</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <div class="w-full flex flex-wrap justify-center gap-2.5 mt-4" id="legend-container"></div>
+                </div>
+
+                <!-- Detail Drilldown Drawer -->
+                <div class="lg:col-span-5 glass-panel rounded-2xl p-6 shadow-lg flex flex-col justify-between" id="detail-drawer">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-4 h-4 rounded-md bg-blue-500" id="detail-color-badge"></div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white" id="detail-cat-name">Selecciona un nivel</h3>
+                                    <p class="text-xs text-slate-400" id="detail-cat-subtitle">Vista detallada de clientes</p>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 text-blue-400" id="detail-cat-share">0%</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                                <span class="text-xs text-slate-400 block">Monto Expuesto</span>
+                                <span class="text-lg font-bold text-white font-mono" id="detail-cat-val">$0</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                                <span class="text-xs text-slate-400 block">PD Promedio</span>
+                                <span class="text-lg font-bold text-white font-mono" id="detail-cat-risk">0%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Composición de Clientes</h4>
+                            <div class="space-y-3 max-h-[260px] overflow-y-auto pr-1" id="detail-holdings-list">
+                                <p class="text-sm text-slate-500 text-center py-8">Haz clic en una sección del gráfico para inspeccionar.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800 text-xs text-slate-400 text-center">
+                        <i class="fa-solid fa-circle-info mr-1"></i> Valores actualizados al estado vivo de la cartera.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplementary Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Evolución Histórica — Sistema Real SFC</h3>
+                            <p class="text-xs text-slate-400">% cartera vencida · bancos vs no bancarias · 24 cortes</p>
+                        </div>
+                        <span id="perf-badge" class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">—</span>
+                    </div>
+                    <div class="h-64"><canvas id="performanceChart"></canvas></div>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Concentración por Nivel de Riesgo</h3>
+                            <p class="text-xs text-slate-400">Distribución porcentual de la exposición</p>
+                        </div>
+                        <i class="fa-solid fa-shield-halved text-blue-400 text-lg"></i>
+                    </div>
+                    <div class="h-64"><canvas id="riskDistChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Automatización -->
+            <div id="auto-panel" class="hidden glass-panel rounded-2xl p-6 shadow-lg border-emerald-500/30" aria-live="polite">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold text-emerald-400"><i class="fa-solid fa-bolt mr-2"></i>Resultado de la Automatización</h3>
+                    <button onclick="automatizarAlertas()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-md shadow-emerald-500/20"><i class="fa-solid fa-play mr-1"></i> Ejecutar</button>
+                </div>
+                <p class="text-sm text-slate-300"><span id="auto-alertas" class="font-bold text-white">0</span> alertas · Monto en riesgo <span id="auto-monto" class="font-bold text-rose-400 font-mono">$0</span></p>
+                <ul id="auto-lista" class="mt-3 space-y-2"></ul>
+                <p class="text-xs text-slate-500 mt-3"><i class="fa-solid fa-scale-balanced mr-1"></i>Reglas: ≥90d → jurídico · ≥30d → preventiva · PD ≥40% → reestructuración · resto → monitoreo.</p>
+            </div>
+            <div class="text-center">
+                <button onclick="automatizarAlertas()" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-all shadow-md shadow-blue-600/25"><i class="fa-solid fa-bolt mr-2"></i>Ejecutar Automatización</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: SCENARIO & STRESS TEST SIMULATOR -->
+        <div id="tab-content-simulator" class="hidden space-y-6 animate-fade-in">
+            <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Simulador de Estrés Crediticio</h2>
+                        <p class="text-sm text-slate-400">Escenarios what-if: reasignación por nivel, PD, recuperación y VaR Monte Carlo.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="applyPresetScenario('base')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-all">Escenario Base</button>
+                        <button onclick="applyPresetScenario('rate-hike')" class="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-medium transition-all">⚡ Estrés (PD ×1.5)</button>
+                        <button onclick="applyPresetScenario('recession')" class="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium transition-all">📉 Crisis (PD ×2)</button>
+                        <button onclick="applyPresetScenario('bull-market')" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-medium transition-all">🚀 Recuperación (PD ×0.7)</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+                    <div class="lg:col-span-5 space-y-6">
+                        <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Ajuste Manual de Exposición</h3>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Riesgo Bajo</span>
+                                <span class="font-mono font-bold text-emerald-400" id="sim-val-low">0%</span>
+                            </div>
+                            <input type="range" id="sim-slider-low" min="0" max="100" value="0" oninput="updateSimulation()" class="w-full accent-emerald-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span> Riesgo Medio</span>
+                                <span class="font-mono font-bold text-amber-400" id="sim-val-med">0%</span>
+                            </div>
+                            <input type="range" id="sim-slider-med" min="0" max="100" value="0" oninput="updateSimulation()" class="w-full accent-amber-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Riesgo Alto</span>
+                                <span class="font-mono font-bold text-rose-400" id="sim-val-high">0%</span>
+                            </div>
+                            <input type="range" id="sim-slider-high" min="0" max="100" value="0" oninput="updateSimulation()" class="w-full accent-rose-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-300 flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-500"></span> Multiplicador de PD</span>
+                                <span class="font-mono font-bold text-sky-400" id="sim-val-mult">×1.0</span>
+                            </div>
+                            <input type="range" id="sim-slider-mult" min="5" max="20" value="10" oninput="updateSimulation()" class="w-full accent-sky-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
+                            <p class="text-[11px] text-slate-500">Escala la probabilidad de incumplimiento (0.5× – 2.0×) sobre la reasignación.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span>Total Distribuido:</span>
+                                <span class="font-mono font-bold text-white" id="sim-total-allocated">100%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
+                                <div id="sim-bar-low" class="bg-emerald-500 h-full transition-all duration-300" style="width:0%"></div>
+                                <div id="sim-bar-med" class="bg-amber-500 h-full transition-all duration-300" style="width:0%"></div>
+                                <div id="sim-bar-high" class="bg-rose-500 h-full transition-all duration-300" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>Recuperación: <span class="font-mono text-emerald-400" id="sim-val-rec">40%</span></span>
+                                <span>LGD: <span class="font-mono text-rose-400" id="sim-val-lgd">60%</span></span>
+                            </div>
+                            <input type="range" id="sim-slider-rec" min="0" max="80" value="40" oninput="updateSimulation()" class="w-full accent-emerald-500 h-2 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-7 flex flex-col justify-between space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                                <span class="text-xs text-slate-400 block">EL Simulada</span>
+                                <span class="text-2xl font-bold font-mono text-white mt-1 block" id="sim-result-value">$0</span>
+                                <span class="text-xs font-mono" id="sim-result-diff">+$0 (0%)</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                                <span class="text-xs text-slate-400 block">Value at Risk (VaR 95%)</span>
+                                <span class="text-2xl font-bold font-mono text-rose-400 mt-1 block" id="sim-result-var">$0</span>
+                                <span class="text-xs text-slate-400">MC 2.000 iteraciones</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                                <span class="text-xs text-slate-400 block">Retorno Ajustado</span>
+                                <span class="text-2xl font-bold font-mono text-blue-400 mt-1 block" id="sim-result-sharpe">—</span>
+                                <span class="text-xs text-emerald-400" id="sim-result-es">ES: $0</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800">
+                            <h4 class="text-xs font-semibold text-slate-300 mb-2">Comparativa: EL por Nivel — Actual vs. Escenario Simulado</h4>
+                            <div class="h-48"><canvas id="scenarioCompareChart"></canvas></div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-500 leading-relaxed"><i class="fa-solid fa-flask mr-1"></i>Metodología (demo académica): la exposición total se reasigna según los sliders por nivel; cada cliente hereda la PD promedio de su nivel × multiplicador. EL = Σ monto × PD′ × LGD. VaR 95 y ES por Monte Carlo (Bernoulli por cliente, semilla fija). Sin correlaciones de default.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- TAB 3: CARTERA MANAGER -->
+        <div id="tab-content-holdings" class="hidden space-y-6 animate-fade-in">
+            <div class="glass-panel rounded-2xl p-6 shadow-lg space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Gestor de Cartera de Crédito</h2>
+                        <p class="text-sm text-slate-400">Clientes con búsqueda, filtros y edición directa (persiste en tu navegador).</p>
+                    </div>
+                    <button onclick="openModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-all shadow-md shadow-blue-600/20 flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Añadir Cliente
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                        <input type="text" id="search-holdings" oninput="renderHoldingsTable()" placeholder="Buscar cliente o ID..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    <select id="filter-category" onchange="renderHoldingsTable()" class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-sm text-slate-300 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">Todos los Niveles</option>
+                    </select>
+                    <select id="filter-risk" onchange="renderHoldingsTable()" class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-sm text-slate-300 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">Toda la Cartera</option>
+                        <option value="vigente">Solo Vigente (mora 0)</option>
+                        <option value="mora">Con Mora (≥1 día)</option>
+                    </select>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900/90 border-b border-slate-800 text-xs text-slate-400 uppercase tracking-wider font-mono">
+                                <th class="py-3.5 px-4">Cliente</th>
+                                <th class="py-3.5 px-4">Nivel</th>
+                                <th class="py-3.5 px-4">Monto ($)</th>
+                                <th class="py-3.5 px-4">% Cartera</th>
+                                <th class="py-3.5 px-4">PD / Score</th>
+                                <th class="py-3.5 px-4">Mora</th>
+                                <th class="py-3.5 px-4 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holdings-table-body" class="divide-y divide-slate-800/60 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: SISTEMA REAL SFC/ICETEX -->
+        <div id="tab-content-sistema" class="hidden space-y-6 animate-fade-in">
+            <div class="glass-panel rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Sistema Financiero Colombiano (datos reales)</h2>
+                    <p class="text-sm text-slate-400">Agregados desde <code class="text-xs bg-slate-800 px-1.5 py-0.5 rounded">data/processed/</code> — Superfinanciera e ICETEX.</p>
+                </div>
+                <span id="sis-meta" class="text-xs font-mono text-slate-400 bg-slate-900 border border-slate-800 rounded-full px-3 py-1.5"></span>
+            </div>
+            <div id="sis-empty" class="hidden bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm rounded-xl px-4 py-3">
+                No se encontró <code>datos_sistema.js</code>. Ejecuta <code class="bg-slate-800 px-1.5 py-0.5 rounded">python src/utils/exportar_agregados_dashboard.py</code>.
+            </div>
+            <div id="sis-content" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-base font-bold text-white mb-1">% Cartera vencida del sistema</h3>
+                    <p class="text-xs text-slate-400 mb-3">Bancos vs no bancarias — 24 cortes</p>
+                    <div class="h-64"><canvas id="chartSerie"></canvas></div>
+                </div>
+                <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-base font-bold text-white mb-1">Top productos por saldo</h3>
+                    <p class="text-xs text-slate-400 mb-3">Último corte · color = % vencida</p>
+                    <div class="h-64"><canvas id="chartProductos"></canvas></div>
+                </div>
+                <div class="glass-panel rounded-2xl p-6 shadow-lg flex flex-col items-center">
+                    <h3 class="text-base font-bold text-white mb-1 self-start">Calificación de riesgo A–E</h3>
+                    <p class="text-xs text-slate-400 mb-3 self-start">Distribución de saldos</p>
+                    <div class="w-52 h-52"><canvas id="chartCalificacion"></canvas></div>
+                </div>
+                <div class="glass-panel rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-base font-bold text-white mb-1">ICETEX: departamentos + vencida</h3>
+                    <p class="text-xs text-slate-400 mb-3">Crédito educativo — último corte</p>
+                    <div class="h-64"><canvas id="chartIcetex"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: GEMINI AI ADVISOR -->
+        <div id="tab-content-ai-advisor" class="hidden space-y-6 animate-fade-in">
+            <div class="glass-panel rounded-2xl p-6 shadow-lg space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-xl border border-purple-500/30">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Asesor de Riesgo IA (Gemini)</h2>
+                            <p class="text-xs text-slate-400">Diagnósticos automáticos y recomendaciones sobre tu cartera en vivo.</p>
+                        </div>
+                    </div>
+                    <span id="ai-model-badge" class="px-3 py-1 rounded-full text-xs font-mono bg-purple-500/10 text-purple-300 border border-purple-500/20">gemini-3.6-flash</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="runAIPrompt('audit')" class="p-4 rounded-xl bg-slate-900/60 hover:border-purple-500/50 border border-slate-800 text-left transition-all group">
+                        <i class="fa-solid fa-shield-halved text-purple-400 text-lg mb-2 block group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-sm font-bold text-white">Auditoría de Riesgo Completa</h4>
+                        <p class="text-xs text-slate-400 mt-1">Concentraciones, vulnerabilidades y cobertura de la cartera.</p>
+                    </button>
+                    <button onclick="runAIPrompt('actions')" class="p-4 rounded-xl bg-slate-900/60 hover:border-purple-500/50 border border-slate-800 text-left transition-all group">
+                        <i class="fa-solid fa-bolt text-blue-400 text-lg mb-2 block group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-sm font-bold text-white">Acciones sobre Alto Riesgo</h4>
+                        <p class="text-xs text-slate-400 mt-1">Plan de gestión para los clientes con mayor exposición al riesgo.</p>
+                    </button>
+                    <button onclick="runAIPrompt('macro')" class="p-4 rounded-xl bg-slate-900/60 hover:border-purple-500/50 border border-slate-800 text-left transition-all group">
+                        <i class="fa-solid fa-earth-americas text-emerald-400 text-lg mb-2 block group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-sm font-bold text-white">Perspectiva Macroeconómica</h4>
+                        <p class="text-xs text-slate-400 mt-1">Factores del sistema financiero colombiano (datos SFC reales).</p>
+                    </button>
+                </div>
+
+                <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4 min-h-[220px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-purple-400 uppercase tracking-wider font-mono flex items-center gap-2">
+                            <i class="fa-solid fa-brain"></i> Respuesta Inteligente
+                        </span>
+                        <div id="ai-loading-spinner" class="hidden items-center gap-2 text-xs text-purple-400 animate-pulse">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Generando análisis con Gemini...
+                        </div>
+                    </div>
+                    <div id="ai-output" class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                        Haz clic en uno de los botones superiores o escribe tu propia consulta para recibir asesoramiento adaptado a la composición actual de tu cartera.
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <input type="text" id="ai-custom-input" placeholder="Pregunta algo específico (ej. ¿Cómo afecta una subida de tasas a mi cartera?)" class="flex-1 px-4 py-3 rounded-xl bg-slate-900/80 border border-slate-800 text-sm focus:outline-none focus:border-purple-500">
+                    <button onclick="sendCustomAIPrompt()" class="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm transition-all shadow-md shadow-purple-600/20 flex items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Consultar
+                    </button>
+                </div>
+
+                <details class="text-xs text-slate-400">
+                    <summary class="cursor-pointer hover:text-slate-200"><i class="fa-solid fa-key mr-1"></i>Configurar API key (se guarda SOLO en tu navegador, nunca en el repo)</summary>
+                    <div class="mt-2 flex gap-2">
+                        <input type="password" id="ai-key-input" placeholder="Pega tu GEMINI_API_KEY de aistudio.google.com" class="flex-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 font-mono">
+                        <button onclick="guardarKeyIA()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200">Guardar</button>
+                        <button onclick="borrarKeyIA()" class="px-4 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20">Borrar</button>
+                    </div>
+                    <p class="mt-1.5" id="ai-key-status"></p>
+                </details>
+            </div>
+        </div>
+
+        <footer class="text-center text-slate-600 text-xs py-4">
+            RiskPulse — diseño original adaptado al proyecto de Riesgo de Crédito · datos reales SFC/ICETEX · VaR Monte Carlo · <a href="index.html" class="underline hover:text-slate-400">ver v1</a>
+        </footer>
+    </main>
+
+    <!-- Modal: Add Cliente -->
+    <div id="modal-holding" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+        <div class="glass-panel w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-800 relative space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 class="text-lg font-bold text-white" id="modal-title">Añadir Nuevo Cliente</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <form id="form-holding" onsubmit="saveHolding(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Nombre del Cliente / Razón social</label>
+                    <input type="text" id="form-name" required placeholder="Ej. Comercializadora Omega S.A.S." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Nivel de Riesgo</label>
+                        <select id="form-category" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-sm text-slate-300 focus:outline-none focus:border-blue-500">
+                            <option value="bajo">Bajo (Conservador)</option>
+                            <option value="medio" selected>Medio (Moderado)</option>
+                            <option value="alto">Alto (Especulativo)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Monto Expuesto (COP)</label>
+                        <input type="number" id="form-value" required min="1" step="any" placeholder="Ej. 95000000" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-sm font-mono focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Score (0–1000)</label>
+                        <input type="number" id="form-score" min="0" max="1000" value="600" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-sm font-mono focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">PD (0–1)</label>
+                        <input type="number" id="form-pd" min="0" max="1" step="0.01" value="0.15" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-sm font-mono focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-all shadow-md shadow-blue-600/20">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Overlay -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="datos.js"></script>
+    <script src="datos_sistema.js"></script>
+    <script>
+        'use strict';
+        // ============================================================
+        // Estado global — modelo RiskPulse adaptado a cartera de crédito
+        // ============================================================
+        const STORE_KEY = 'riskpulse_cartera_riesgo';
+
+        function categoriasIniciales() {
+            // Mapea datos.js (6 clientes) al modelo categorías/holdings de RiskPulse
+            const defs = [
+                { key:'bajo',  label:'Riesgo Bajo',  colorVar:'#10b981', estado:'Bajo' },
+                { key:'medio', label:'Riesgo Medio', colorVar:'#f59e0b', estado:'Medio' },
+                { key:'alto',  label:'Riesgo Alto',  colorVar:'#ef4444', estado:'Alto' }
+            ];
+            return defs.map(d => ({
+                key: d.key, label: d.label, colorVar: d.colorVar, riskLevel: d.estado,
+                holdings: baseDatosConsolidada.filter(c => c.estado === d.estado).map(c => ({
+                    id: c.id, name: c.nombre, value: c.monto, risk: c.estado,
+                    score: c.score, pd: c.probDefault, mora: c.moraDias, plazo: c.plazo, tasa: c.tasa
+                }))
+            }));
+        }
+
+        let state = {
+            categories: (function(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)) || categoriasIniciales(); } catch(e){ return categoriasIniciales(); } })(),
+            activeTab: 'dashboard',
+            selectedCategoryKey: null,
+            theme: 'dark',
+            simulation: { low: 0, med: 0, high: 0, mult: 10, rec: 40 }
+        };
+
+        let performanceChartInstance = null, riskDistChartInstance = null, scenarioCompareChartInstance = null;
+        const chartsSistema = {};
+        let simIniciado = false, sisIniciado = false;
+
+        const fmtCOP = new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+        function formatCurrency(v){ return fmtCOP.format(Number(v)||0); }
+        function formatPercent(v){ return (Math.round(v*10)/10)+'%'; }
+        function getTotalPortfolioValue(){ return state.categories.reduce(function(s,c){ return s + c.holdings.reduce(function(a,h){ return a+(Number(h.value)||0); },0); },0); }
+        function getCategoryValue(cat){ return cat.holdings.reduce(function(s,h){ return s+(Number(h.value)||0); },0); }
+        function todosClientes(){ const out=[]; state.categories.forEach(function(c){ c.holdings.forEach(function(h){ out.push(Object.assign({},h,{catKey:c.key,catLabel:c.label,catColor:c.colorVar})); }); }); return out; }
+        function saveState(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state.categories)); } catch(e){} }
+
+        function showToast(message, type){
+            const c=document.getElementById('toast-container');
+            const t=document.createElement('div');
+            const bg = type==='error'?'bg-rose-600':(type==='warn'?'bg-amber-600':'bg-blue-600');
+            t.className=bg+' text-white px-4 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-2 pointer-events-auto toast-fx';
+            t.innerHTML='<i class="fa-solid fa-circle-check"></i> <span></span>';
+            t.querySelector('span').textContent=message;
+            c.appendChild(t);
+            requestAnimationFrame(function(){ t.classList.add('on'); });
+            setTimeout(function(){ t.classList.remove('on'); setTimeout(function(){ t.remove(); },300); },3200);
+        }
+
+        function switchTab(tabId){
+            state.activeTab = tabId;
+            ['dashboard','simulator','holdings','sistema','ai-advisor'].forEach(function(t){
+                document.getElementById('tab-content-'+t).classList.toggle('hidden', t!==tabId);
+                document.getElementById('nav-'+t).classList.toggle('active', t===tabId);
+            });
+            if(tabId==='simulator' && !simIniciado){ simIniciado=true; initSimFromState(); updateSimulation(); }
+            if(tabId==='sistema' && !sisIniciado){ sisIniciado=true; renderSistema(); }
+            if(tabId==='holdings'){ renderHoldingsTable(); }
+        }
+
+        function toggleTheme(){
+            const b=document.getElementById('body-root');
+            state.theme = (state.theme==='dark') ? 'light' : 'dark';
+            b.classList.toggle('dark', state.theme==='dark');
+            b.classList.toggle('light', state.theme==='light');
+            document.querySelector('nav .fa-moon').classList.toggle('hidden', state.theme==='light');
+            document.querySelector('nav .fa-sun').classList.toggle('hidden', state.theme==='dark');
+            try { localStorage.setItem('riskpulse_theme', state.theme); } catch(e){}
+            renderDashboard();
+        }
+
+        // ============================================================
+        // Donut SVG interactivo (fieles a RiskPulse)
+        // ============================================================
+        function getArcPath(startAngle, endAngle, innerRadius, outerRadius){
+            const sin=Math.sin, cos=Math.cos;
+            const x1=outerRadius*cos(startAngle), y1=outerRadius*sin(startAngle);
+            const x2=outerRadius*cos(endAngle), y2=outerRadius*sin(endAngle);
+            const x3=innerRadius*cos(endAngle), y3=innerRadius*sin(endAngle);
+            const x4=innerRadius*cos(startAngle), y4=innerRadius*sin(startAngle);
+            const largeArcFlag=(endAngle-startAngle)>Math.PI?1:0;
+            return 'M '+x1+' '+y1+' A '+outerRadius+' '+outerRadius+' 0 '+largeArcFlag+' 1 '+x2+' '+y2+' L '+x3+' '+y3+' A '+innerRadius+' '+innerRadius+' 0 '+largeArcFlag+' 0 '+x4+' '+y4+' Z';
+        }
+
+        function renderDonutChart(){
+            const totalVal=getTotalPortfolioValue();
+            const slicesGroup=document.getElementById('slices-group');
+            const labelsGroup=document.getElementById('labels-group');
+            const legendContainer=document.getElementById('legend-container');
+            slicesGroup.innerHTML=''; labelsGroup.innerHTML=''; legendContainer.innerHTML='';
+            if(totalVal===0) return;
+            const outerRadius=130, innerRadius=90, labelRadius=150, gap=0.035;
+            let currentAngle=-Math.PI/2;
+
+            state.categories.forEach(function(cat){
+                const catVal=getCategoryValue(cat);
+                const catPct=(catVal/totalVal)*100;
+                if(catPct===0) return;
+                const sliceAngle=(catPct/100)*Math.PI*2;
+                const startAngle=currentAngle+gap/2, endAngle=currentAngle+sliceAngle-gap/2;
+
+                const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+                path.setAttribute('d', getArcPath(startAngle,endAngle,innerRadius,outerRadius));
+                path.setAttribute('fill', cat.colorVar);
+                path.setAttribute('class', 'donut-slice '+((state.selectedCategoryKey && state.selectedCategoryKey!==cat.key)?'dimmed':'')+' '+((state.selectedCategoryKey===cat.key)?'active':''));
+                path.onclick=function(){ selectCategory(cat.key); };
+                slicesGroup.appendChild(path);
+
+                if(catPct>=5){
+                    const midAngle=(startAngle+endAngle)/2;
+                    const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+                    text.setAttribute('x', labelRadius*Math.cos(midAngle));
+                    text.setAttribute('y', labelRadius*Math.sin(midAngle));
+                    text.setAttribute('class','text-xs font-mono font-semibold fill-slate-300 pointer-events-none');
+                    text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+                    text.textContent=formatPercent(catPct);
+                    labelsGroup.appendChild(text);
+                }
+
+                const legendItem=document.createElement('button');
+                legendItem.className='px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-2 transition-all '+((state.selectedCategoryKey===cat.key)?'bg-slate-800 border-blue-500 text-white':'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700');
+                legendItem.onclick=function(){ selectCategory(cat.key); };
+                legendItem.innerHTML='<span class="w-2.5 h-2.5 rounded-full" style="background-color:'+cat.colorVar+'"></span> <span>'+cat.label+'</span> <span class="text-slate-400 font-mono text-[10px]">'+formatPercent(catPct)+'</span>';
+                legendContainer.appendChild(legendItem);
+
+                currentAngle+=sliceAngle;
+            });
+
+            if(state.selectedCategoryKey){
+                const sel=state.categories.find(function(c){ return c.key===state.selectedCategoryKey; });
+                const val=getCategoryValue(sel);
+                document.getElementById('donut-center-title').textContent=sel.label;
+                document.getElementById('donut-center-value').textContent=formatCurrency(val);
+                document.getElementById('donut-center-sub').textContent=formatPercent(val/totalVal*100)+' de la cartera';
+                document.getElementById('btn-reset-chart').classList.remove('hidden');
+            } else {
+                document.getElementById('donut-center-title').textContent='Cartera Total';
+                document.getElementById('donut-center-value').textContent=formatCurrency(totalVal);
+                document.getElementById('donut-center-sub').textContent=state.categories.length+' Niveles';
+                document.getElementById('btn-reset-chart').classList.add('hidden');
+            }
+        }
+
+        function selectCategory(catKey){
+            state.selectedCategoryKey = (state.selectedCategoryKey===catKey) ? null : catKey;
+            renderDonutChart(); renderCategoryDrawer();
+        }
+        function resetChartSelection(){ state.selectedCategoryKey=null; renderDonutChart(); renderCategoryDrawer(); }
+
+        function renderCategoryDrawer(){
+            const totalVal=getTotalPortfolioValue();
+            const drawerBadge=document.getElementById('detail-color-badge');
+            const drawerName=document.getElementById('detail-cat-name');
+            const drawerSub=document.getElementById('detail-cat-subtitle');
+            const drawerShare=document.getElementById('detail-cat-share');
+            const drawerVal=document.getElementById('detail-cat-val');
+            const drawerRisk=document.getElementById('detail-cat-risk');
+            const list=document.getElementById('detail-holdings-list');
+
+            if(!state.selectedCategoryKey){
+                drawerBadge.style.backgroundColor='#3b82f6';
+                drawerName.textContent='Resumen General';
+                drawerSub.textContent='Top clientes de toda la cartera';
+                drawerShare.textContent='100%'; drawerVal.textContent=formatCurrency(totalVal);
+                const n=todosClientes().length;
+                const pdProm=todosClientes().reduce(function(a,h){ return a+(h.pd||0); },0)/(n||1);
+                drawerRisk.textContent=(pdProm*100).toFixed(1)+'%';
+                list.innerHTML=todosClientes().sort(function(a,b){ return b.value-a.value; }).slice(0,5).map(function(h){
+                    const pct=totalVal>0?(h.value/totalVal)*100:0;
+                    return '<div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between"><div><span class="font-semibold text-white block">'+h.name+'</span><span class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full" style="background-color:'+h.catColor+'"></span> '+h.catLabel+'</span></div><div class="text-right"><span class="font-mono font-bold text-white block">'+formatCurrency(h.value)+'</span><span class="text-xs font-mono text-slate-400">'+formatPercent(pct)+'</span></div></div>';
+                }).join('');
+                return;
+            }
+
+            const cat=state.categories.find(function(c){ return c.key===state.selectedCategoryKey; });
+            const catVal=getCategoryValue(cat);
+            const pdProm=cat.holdings.length?cat.holdings.reduce(function(a,h){ return a+(h.pd||0); },0)/cat.holdings.length:0;
+            drawerBadge.style.backgroundColor=cat.colorVar;
+            drawerName.textContent=cat.label;
+            drawerSub.textContent=cat.holdings.length+' clientes en este nivel';
+            drawerShare.textContent=formatPercent(totalVal>0?catVal/totalVal*100:0);
+            drawerVal.textContent=formatCurrency(catVal);
+            drawerRisk.textContent=(pdProm*100).toFixed(1)+'%';
+
+            list.innerHTML=cat.holdings.map(function(h){
+                const hPct=catVal>0?(h.value/catVal)*100:0;
+                return '<div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2"><div class="flex items-center justify-between"><span class="font-semibold text-white">'+h.name+'</span><span class="font-mono font-bold text-white">'+formatCurrency(h.value)+'</span></div><div class="flex justify-between text-[11px] text-slate-400 font-mono"><span>'+h.id+' · PD '+((h.pd||0)*100).toFixed(0)+'% · score '+(h.score||'—')+'</span><span>'+formatPercent(hPct)+'</span></div><div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all duration-500" style="width:'+hPct+'%; background-color:'+cat.colorVar+'"></div></div></div>';
+            }).join('');
+        }
+    </script>
+    <script>
+        'use strict';
+        // ============================================================
+        // Charts suplementarios + KPIs + automatización
+        // ============================================================
+        function initSupplementaryCharts(){
+            const ctxPerf=document.getElementById('performanceChart') && document.getElementById('performanceChart').getContext('2d');
+            if(ctxPerf){
+                if(performanceChartInstance) performanceChartInstance.destroy();
+                const tieneSFC=(typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
+                if(tieneSFC){
+                    const s=DATOS_SISTEMA.serieVencida;
+                    const delta=(s[s.length-1].total - s[0].total);
+                    document.getElementById('perf-badge').textContent=(delta>=0?'+':'')+delta.toFixed(2)+' pts '+s[0].mes.slice(2)+'→'+s[s.length-1].mes.slice(2);
+                    performanceChartInstance=new Chart(ctxPerf,{type:'line',
+                        data:{labels:s.map(function(x){ return x.mes.slice(2); }),datasets:[
+                            {label:'Total sistema',data:s.map(function(x){ return x.total; }),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.35,borderWidth:2,pointRadius:3},
+                            {label:'Bancos',data:s.map(function(x){ return x.bancos; }),borderColor:'#10b981',tension:0.35,borderWidth:1.5,pointRadius:0},
+                            {label:'No bancarias',data:s.map(function(x){ return x.noBancarias; }),borderColor:'#ef4444',tension:0.35,borderWidth:1.5,pointRadius:0}]},
+                        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
+                            scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10},maxTicksLimit:12}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){ return v+'%'; }}}}}});
+                } else {
+                    performanceChartInstance=new Chart(ctxPerf,{type:'line',
+                        data:{labels:['Ene','Feb','Mar','Abr','May','Jun'],datasets:[{label:'Placeholder',data:[1,1,1,1,1,1],borderColor:'#3b82f6'}]},
+                        options:{plugins:{legend:{display:false}}}});
+                }
+            }
+
+            const ctxRisk=document.getElementById('riskDistChart') && document.getElementById('riskDistChart').getContext('2d');
+            if(ctxRisk){
+                if(riskDistChartInstance) riskDistChartInstance.destroy();
+                const total=getTotalPortfolioValue();
+                riskDistChartInstance=new Chart(ctxRisk,{type:'bar',
+                    data:{labels:state.categories.map(function(c){ return c.label; }),datasets:[{data:state.categories.map(function(c){ return total>0?(getCategoryValue(c)/total*100):0; }),backgroundColor:state.categories.map(function(c){ return c.colorVar; }),borderRadius:8}]},
+                    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return ' '+formatPercent(c.parsed.y)+' de exposición'; }}}},
+                        scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){ return v+'%'; }}}}}});
+            }
+        }
+
+        function renderDashboard(){
+            const totalVal=getTotalPortfolioValue();
+            const todos=todosClientes();
+            const elBase=todos.reduce(function(a,h){ return a+(h.value||0)*((h.pd)||0); },0);
+            const pctVencida=totalVal>0?(elBase/totalVal*100):0;
+            const scoreProm=todos.length?Math.round(todos.reduce(function(a,h){ return a+(h.score||0); },0)/todos.length):0;
+            document.getElementById('kpi-total-val').textContent=formatCurrency(totalVal);
+            document.getElementById('kpi-yield').textContent=pctVencida.toFixed(2)+'%';
+            document.getElementById('kpi-risk-score').textContent=Math.round(scoreProm/10)+'/100';
+            document.getElementById('kpi-cat-count').textContent=todos.length;
+            renderDonutChart(); renderCategoryDrawer(); initSupplementaryCharts();
+        }
+
+        function automatizarAlertas(){
+            const todos=todosClientes();
+            const criticos=todos.filter(function(h){ return h.risk==='Alto' || (h.pd||0)>=0.3 || (h.mora||0)>=90; });
+            const monto=criticos.reduce(function(a,h){ return a+(h.value||0); },0);
+            const regla=function(h){ return (h.mora||0)>=90?'Cobro jurídico':((h.mora||0)>=30?'Cobranza preventiva':((h.pd||0)>=0.4?'Reestructuración':'Monitoreo intensivo')); };
+            document.getElementById('auto-alertas').textContent=criticos.length;
+            document.getElementById('auto-monto').textContent=formatCurrency(monto);
+            document.getElementById('auto-lista').innerHTML=criticos.map(function(h){
+                return '<li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3"><span class="font-mono text-slate-400 text-xs">'+h.id+'</span><span class="font-medium text-white">'+h.name+'</span><span class="text-rose-400 font-semibold font-mono">'+formatCurrency(h.value)+'</span><span class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">'+regla(h)+'</span></li>';
+            }).join('');
+            document.getElementById('auto-panel').classList.remove('hidden');
+            document.getElementById('auto-panel').scrollIntoView({behavior:'smooth'});
+            showToast(criticos.length+' alertas generadas para Cobranzas');
+        }
+
+        function exportarCSV(){
+            const headers=['ID','Nombre','Nivel','Monto','PD','Score','Mora'];
+            const rows=todosClientes().map(function(h){ return [h.id,h.name,h.catLabel,h.value,h.pd||0,h.score||'',h.mora||0].join(','); });
+            const blob=new Blob([[headers.join(',')].concat(rows).join('\n')],{type:'text/csv'});
+            const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cartera_riesgo.csv'; a.click(); URL.revokeObjectURL(a.href);
+            showToast('Cartera exportada en CSV');
+        }
+
+        // ============================================================
+        // Simulador — reasignación + PD mult + recuperación + MC VaR
+        // ============================================================
+        function mulberry32(seed){ return function(){ let t=seed+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+
+        function initSimFromState(){
+            const total=getTotalPortfolioValue();
+            const get=function(key){ const c=state.categories.find(function(x){ return x.key===key; }); return c?getCategoryValue(c):0; };
+            document.getElementById('sim-slider-low').value=total>0?Math.round(get('bajo')/total*100):0;
+            document.getElementById('sim-slider-med').value=total>0?Math.round(get('medio')/total*100):0;
+            document.getElementById('sim-slider-high').value=total>0?Math.round(get('alto')/total*100):0;
+        }
+
+        function applyPresetScenario(preset){
+            if(preset==='base'){ initSimFromState(); state.simulation.mult=10; }
+            else if(preset==='rate-hike'){ state.simulation.mult=15; }
+            else if(preset==='recession'){ state.simulation.mult=20; }
+            else if(preset==='bull-market'){ state.simulation.mult=7; }
+            document.getElementById('sim-slider-mult').value=state.simulation.mult;
+            updateSimulation();
+            showToast('Escenario "'+preset.toUpperCase()+'" aplicado correctamente');
+        }
+
+        function updateSimulation(){
+            const low=Number(document.getElementById('sim-slider-low').value);
+            const med=Number(document.getElementById('sim-slider-med').value);
+            const high=Number(document.getElementById('sim-slider-high').value);
+            const mult=Number(document.getElementById('sim-slider-mult').value)/10;
+            const rec=Number(document.getElementById('sim-slider-rec').value);
+            const lgd=1-rec/100;
+            state.simulation={low:low,med:med,high:high,mult:mult*10,rec:rec};
+
+            document.getElementById('sim-val-low').textContent=low+'%';
+            document.getElementById('sim-val-med').textContent=med+'%';
+            document.getElementById('sim-val-high').textContent=high+'%';
+            document.getElementById('sim-val-mult').textContent='×'+mult.toFixed(1);
+            document.getElementById('sim-val-rec').textContent=rec+'%';
+            document.getElementById('sim-val-lgd').textContent=Math.round(lgd*100)+'%';
+            document.getElementById('sim-bar-low').style.width=low+'%';
+            document.getElementById('sim-bar-med').style.width=med+'%';
+            document.getElementById('sim-bar-high').style.width=high+'%';
+            const totalAlloc=low+med+high;
+            const allocEl=document.getElementById('sim-total-allocated');
+            allocEl.textContent=totalAlloc+'%';
+            allocEl.className='font-mono font-bold '+(totalAlloc===100?'text-white':'text-amber-400');
+
+            const total=getTotalPortfolioValue();
+            const actuales={ bajo:0, medio:0, alto:0 };
+            state.categories.forEach(function(c){ actuales[c.key]=getCategoryValue(c); });
+
+            // EL base (estado actual, LGD del slider para comparabilidad)
+            const todos=todosClientes();
+            const elBase=todos.reduce(function(a,h){ return a+(h.value||0)*((h.pd)||0)*lgd; },0);
+
+            // Cartera simulada: reasignar monto total por niveles + PD promedio del nivel × mult
+            const pdNivel={};
+            state.categories.forEach(function(c){
+                const pds=c.holdings.map(function(h){ return h.pd||0; });
+                pdNivel[c.key]=pds.length?pds.reduce(function(a,b){ return a+b; },0)/pds.length:0;
+            });
+            const mix={'bajo':low/100,'medio':med/100,'alto':high/100};
+            const elSim=total*( mix.bajo*Math.min(pdNivel.bajo*mult,0.99) + mix.medio*Math.min(pdNivel.medio*mult,0.99) + mix.alto*Math.min(pdNivel.alto*mult,0.99) )*lgd;
+
+            // MC VaR/ES sobre clientes reescalados
+            const factor={};
+            state.categories.forEach(function(c){ const act=actuales[c.key]/(total||1); factor[c.key]= act>0 ? (mix[c.key]/act) : 0; });
+            const pds=[],montos=[];
+            todos.forEach(function(h){
+                pds.push(Math.min((h.pd||0)*mult,0.99));
+                montos.push((h.value||0)*(factor[h.catKey]||0)*lgd);
+            });
+            const n=2000, rnd=mulberry32(42), perdidas=new Array(n);
+            for(let i=0;i<n;i++){ let s=0; for(let j=0;j<pds.length;j++){ if(rnd()<pds[j]) s+=montos[j]; } perdidas[i]=s; }
+            perdidas.sort(function(a,b){ return a-b; });
+            const idx=Math.floor(n*0.95), var95=perdidas[idx], cola=perdidas.slice(idx);
+            const es=cola.reduce(function(a,b){ return a+b; },0)/cola.length;
+
+            const diff=elSim-elBase, dp=elBase>0?diff/elBase*100:0;
+            document.getElementById('sim-result-value').textContent=formatCurrency(elSim);
+            const dEl=document.getElementById('sim-result-diff');
+            dEl.textContent=(diff>=0?'+':'')+formatCurrency(diff)+' ('+(dp>=0?'+':'')+dp.toFixed(0)+'%) vs base';
+            dEl.className='text-xs font-mono '+(diff>=0?'text-rose-400':'text-emerald-400');
+            document.getElementById('sim-result-var').textContent=formatCurrency(var95);
+            document.getElementById('sim-result-sharpe').textContent=var95>0?((total*0.15-elSim)/var95).toFixed(2)+'×':'—';
+            document.getElementById('sim-result-es').textContent='ES: '+formatCurrency(es);
+
+            if(scenarioCompareChartInstance) scenarioCompareChartInstance.destroy();
+            const elNivelBase={bajo:0,medio:0,alto:0}, elNivelSim={bajo:0,medio:0,alto:0};
+            state.categories.forEach(function(c){ elNivelBase[c.key]=actuales[c.key]*(pdNivel[c.key])*lgd; });
+            state.categories.forEach(function(c){ elNivelSim[c.key]=total*mix[c.key]*Math.min(pdNivel[c.key]*mult,0.99)*lgd; });
+            scenarioCompareChartInstance=new Chart(document.getElementById('scenarioCompareChart'),{type:'bar',
+                data:{labels:['Riesgo Bajo','Riesgo Medio','Riesgo Alto'],datasets:[
+                    {label:'EL Actual (%)',data:[elNivelBase.bajo,elNivelBase.medio,elNivelBase.alto],backgroundColor:'#3b82f6',borderRadius:6},
+                    {label:'EL Simulada (%)',data:[elNivelSim.bajo,elNivelSim.medio,elNivelSim.alto],backgroundColor:'#8b5cf6',borderRadius:6}]},
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#94a3b8'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8'}}}}});
+        }
+    </script>
+    <script>
+        'use strict';
+        // ============================================================
+        // Gestor de cartera (CRUD) — fiel a RiskPulse Holdings Manager
+        // ============================================================
+        function renderHoldingsTable(){
+            const tableBody=document.getElementById('holdings-table-body');
+            const categorySelect=document.getElementById('filter-category');
+            const searchVal=document.getElementById('search-holdings').value.toLowerCase();
+            const categoryFilter=categorySelect.value;
+            const riskFilter=document.getElementById('filter-risk').value;
+
+            if(categorySelect.options.length<=1){
+                state.categories.forEach(function(c){
+                    const opt=document.createElement('option');
+                    opt.value=c.key; opt.textContent=c.label;
+                    categorySelect.appendChild(opt);
+                });
+            }
+
+            const totalVal=getTotalPortfolioValue();
+            let rowsHtml='';
+            state.categories.forEach(function(cat){
+                if(categoryFilter!=='ALL' && cat.key!==categoryFilter) return;
+                cat.holdings.forEach(function(h){
+                    if(searchVal && !(h.name.toLowerCase().includes(searchVal) || (h.id||'').toLowerCase().includes(searchVal))) return;
+                    if(riskFilter==='vigente' && (h.mora||0)>0) return;
+                    if(riskFilter==='mora' && !(h.mora||0)>=1) return;
+                    const sharePct=totalVal>0?(h.value/totalVal)*100:0;
+                    rowsHtml+='<tr class="hover:bg-slate-900/40 transition-colors">'
+                        +'<td class="py-3.5 px-4"><span class="font-semibold text-white">'+h.name+'</span><span class="block text-xs font-mono text-slate-500">'+(h.id||'—')+'</span></td>'
+                        +'<td class="py-3.5 px-4 text-xs"><span class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 flex items-center gap-1.5 w-fit"><span class="w-2 h-2 rounded-full" style="background-color:'+cat.colorVar+'"></span> '+cat.label+'</span></td>'
+                        +'<td class="py-3.5 px-4 font-mono font-bold text-white">'+formatCurrency(h.value)+'</td>'
+                        +'<td class="py-3.5 px-4 font-mono text-xs text-slate-300">'+formatPercent(sharePct)+'</td>'
+                        +'<td class="py-3.5 px-4 font-mono text-xs">'+((h.pd||0)*100).toFixed(0)+'% / '+(h.score||'—')+'</td>'
+                        +'<td class="py-3.5 px-4 text-xs '+(h.mora>=90?'text-rose-400 font-bold':(h.mora>0?'text-amber-400':'text-emerald-400'))+'">'+(h.mora||0)+' d</td>'
+                        +'<td class="py-3.5 px-4 text-right"><button onclick="deleteHolding(\''+cat.key+'\',\''+h.id+'\')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button></td>'
+                        +'</tr>';
+                });
+            });
+            if(!rowsHtml){ rowsHtml='<tr><td colspan="7" class="py-8 text-center text-slate-500">No se encontraron clientes con los filtros seleccionados.</td></tr>'; }
+            tableBody.innerHTML=rowsHtml;
+        }
+
+        function openModal(){
+            document.getElementById('modal-holding').classList.remove('hidden');
+            document.getElementById('modal-holding').classList.add('flex');
+        }
+        function closeModal(){
+            document.getElementById('modal-holding').classList.add('hidden');
+            document.getElementById('modal-holding').classList.remove('flex');
+            document.getElementById('form-holding').reset();
+        }
+        function saveHolding(e){
+            e.preventDefault();
+            const name=document.getElementById('form-name').value.trim();
+            const catKey=document.getElementById('form-category').value;
+            const value=Number(document.getElementById('form-value').value);
+            const score=Number(document.getElementById('form-score').value)||600;
+            const pd=Math.min(Math.max(Number(document.getElementById('form-pd').value)||0.15,0),0.99);
+            const cat=state.categories.find(function(c){ return c.key===catKey; });
+            if(cat){
+                const estado=cat.riskLevel;
+                cat.holdings.push({ id:'CLI-'+String(Date.now()).slice(-6), name:name, value:value, risk:estado, score:score, pd:pd, mora:0, plazo:24, tasa:15 });
+                saveState(); renderDashboard(); renderHoldingsTable(); closeModal();
+                showToast('Cliente "'+name+'" guardado correctamente');
+            }
+        }
+        function deleteHolding(catKey, holdingId){
+            const cat=state.categories.find(function(c){ return c.key===catKey; });
+            if(cat){
+                cat.holdings=cat.holdings.filter(function(h){ return h.id!==holdingId; });
+                saveState(); renderDashboard(); renderHoldingsTable();
+                showToast('Cliente eliminado','warn');
+            }
+        }
+        function restaurarCarteraInicial(){
+            state.categories=categoriasIniciales(); saveState(); renderDashboard(); renderHoldingsTable();
+            showToast('Cartera restaurada a los 6 clientes de datos.js');
+        }
+
+        // ============================================================
+        // Sistema Real (SFC/ICETEX)
+        // ============================================================
+        function renderSistema(){
+            const tieneDatos=(typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
+            document.getElementById('sis-empty').classList.toggle('hidden', tieneDatos);
+            document.getElementById('sis-content').classList.toggle('hidden', !tieneDatos);
+            if(!tieneDatos) return;
+            document.getElementById('sis-meta').textContent=DATOS_SISTEMA.meta.desde+' → '+DATOS_SISTEMA.meta.hasta+' · '+DATOS_SISTEMA.meta.filasSFC.toLocaleString('es-CO')+' filas SFC';
+            const s=DATOS_SISTEMA.serieVencida;
+            chartsSistema.serie=new Chart(document.getElementById('chartSerie'),{type:'line',
+                data:{labels:s.map(function(x){ return x.mes.slice(2); }),datasets:[
+                    {label:'Total sistema',data:s.map(function(x){ return x.total; }),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:2},
+                    {label:'Bancos',data:s.map(function(x){ return x.bancos; }),borderColor:'#10b981',tension:.35,borderWidth:1.5,pointRadius:0},
+                    {label:'No bancarias',data:s.map(function(x){ return x.noBancarias; }),borderColor:'#ef4444',tension:.35,borderWidth:1.5,pointRadius:0}]},
+                options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
+                    scales:{x:{ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:12},grid:{display:false}},y:{ticks:{color:'#94a3b8',font:{size:9},callback:function(v){ return v+'%'; }},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+            const verde=function(v){ return v<4?'#10b981':(v<7?'#f59e0b':'#ef4444'); };
+            chartsSistema.prod=new Chart(document.getElementById('chartProductos'),{type:'bar',
+                data:{labels:DATOS_SISTEMA.topProductos.map(function(p){ return p.producto; }),datasets:[{data:DATOS_SISTEMA.topProductos.map(function(p){ return p.saldoMilesM; }),backgroundColor:DATOS_SISTEMA.topProductos.map(function(p){ return verde(p.pctVencida); }),borderRadius:6}]},
+                options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+                    scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}}}}});
+            const colCal={A:'#10b981',B:'#84cc16',C:'#facc15',D:'#f97316',E:'#dc2626'};
+            chartsSistema.calif=new Chart(document.getElementById('chartCalificacion'),{type:'doughnut',
+                data:{labels:DATOS_SISTEMA.calificacion.map(function(c){ return 'Calif. '+c.letra; }),datasets:[{data:DATOS_SISTEMA.calificacion.map(function(c){ return c.saldoMilesM; }),backgroundColor:DATOS_SISTEMA.calificacion.map(function(c){ return colCal[c.letra]; }),borderWidth:0}]},
+                options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:9},boxWidth:10}}}}});
+            chartsSistema.icetex=new Chart(document.getElementById('chartIcetex'),{type:'bar',
+                data:{labels:DATOS_SISTEMA.icetexTop.map(function(d){ return d.departamento; }),datasets:[{data:DATOS_SISTEMA.icetexTop.map(function(d){ return d.pctVencida; }),backgroundColor:'#3b82f6',borderRadius:6}]},
+                options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+                    scales:{x:{ticks:{color:'#94a3b8',font:{size:9},callback:function(v){ return v+'%'; }},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}}}}});
+        }
+
+        // ============================================================
+        // Asesor IA — Gemini directo (key en localStorage, NUNCA en el repo)
+        // ============================================================
+        const IA_KEY='gemini_api_key_local';
+        const IA_MODELOS=['gemini-3.6-flash','gemini-flash-latest','gemini-2.5-flash'];
+
+        function guardarKeyIA(){
+            const v=document.getElementById('ai-key-input').value.trim();
+            if(!v){ showToast('Pega una key primero','warn'); return; }
+            try { localStorage.setItem(IA_KEY, v); } catch(e){}
+            actualizarEstadoKey(); showToast('Key guardada en tu navegador (no se sube a ningún repo)');
+            document.getElementById('ai-key-input').value='';
+        }
+        function borrarKeyIA(){ try { localStorage.removeItem(IA_KEY); } catch(e){} actualizarEstadoKey(); showToast('Key eliminada del navegador','warn'); }
+        function actualizarEstadoKey(){
+            let tiene=false; try { tiene=!!localStorage.getItem(IA_KEY); } catch(e){}
+            document.getElementById('ai-key-status').textContent=tiene?'✓ Key configurada en este navegador':'Sin key: usa la de tu .env en el Streamlit, o pégala aquí.';
+        }
+
+        function contextoCartera(){
+            const todos=todosClientes(); const total=getTotalPortfolioValue();
+            const el=todos.reduce(function(a,h){ return a+(h.value||0)*((h.pd)||0); },0);
+            const comp=state.categories.map(function(c){
+                const v=getCategoryValue(c);
+                return '- '+c.label+': '+formatCurrency(v)+' ('+formatPercent(total>0?v/total*100:0)+') · '+c.holdings.length+' clientes';
+            }).join('\n');
+            return 'Monto Total: '+formatCurrency(total)+'\nPD promedio ponderada: '+(total>0?el/total*100:0).toFixed(2)+'%\nComposición por nivel:\n'+comp;
+        }
+
+        async function llamarGemini(prompt){
+            let key=null; try { key=localStorage.getItem(IA_KEY); } catch(e){}
+            const out=document.getElementById('ai-output');
+            const spinner=document.getElementById('ai-loading-spinner');
+            if(!key){ out.textContent='⚠️ Primero configura tu GEMINI_API_KEY abajo (se guarda solo en este navegador). La misma key de aistudio.google.com que usaste en el Streamlit.'; return; }
+            out.textContent=''; spinner.classList.remove('hidden'); spinner.classList.add('flex');
+            const systemPrompt='Eres un analista senior de riesgo de crédito en Colombia. Analiza esta cartera:\n'+contextoCartera()+'\n\nResponde en español, ejecutivo y conciso (máx. 6 viñetas).';
+            let ultimoErr=null;
+            try{
+                for(const modelo of IA_MODELOS){
+                    try{
+                        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+encodeURIComponent(key),{
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({contents:[{parts:[{text:prompt}]}],systemInstruction:{parts:[{text:systemPrompt}]}})
+                        });
+                        if(r.status===404) continue;
+                        const j=await r.json();
+                        const txt=j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0].text;
+                        if(txt){ document.getElementById('ai-model-badge').textContent=modelo; out.textContent=txt; return; }
+                        ultimoErr=(j.error&&j.error.message)||'respuesta vacía';
+                    }catch(e){ ultimoErr=e.message; }
+                }
+                out.textContent='❌ Error al consultar Gemini: '+ultimoErr;
+            } finally {
+                spinner.classList.add('hidden'); spinner.classList.remove('flex');
+            }
+        }
+
+        function runAIPrompt(type){
+            const prompts={
+                audit:'Realiza una auditoría integral de riesgos de mi cartera: concentraciones peligrosas, vulnerabilidades y calidad crediticia por nivel.',
+                actions:'¿Qué acciones concretas recomiendas para los clientes de alto riesgo? Considera días de mora y probabilidad de incumplimiento.',
+                macro:'Considerando el contexto del sistema financiero colombiano (usa los datos SFC del dashboard), ¿qué factores macro podrían afectar esta cartera?'
+            };
+            llamarGemini(prompts[type]);
+        }
+        function sendCustomAIPrompt(){
+            const input=document.getElementById('ai-custom-input');
+            if(input.value.trim()){ llamarGemini(input.value.trim()); input.value=''; }
+        }
+
+        // ============================================================
+        // Init
+        // ============================================================
+        (function init(){
+            let tema='dark';
+            try { tema=localStorage.getItem('riskpulse_theme')||'dark'; } catch(e){}
+            state.theme=tema;
+            document.getElementById('body-root').classList.toggle('dark', tema==='dark');
+            document.getElementById('body-root').classList.toggle('light', tema==='light');
+            document.querySelector('nav .fa-moon').classList.toggle('hidden', tema==='light');
+            document.querySelector('nav .fa-sun').classList.toggle('hidden', tema==='dark');
+            renderDashboard();
+            renderHoldingsTable();
+            actualizarEstadoKey();
+        })();
+    </script>
 </body>
 </html>
