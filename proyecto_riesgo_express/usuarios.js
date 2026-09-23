@@ -1,8 +1,28 @@
 ﻿// ============================================================
 // usuarios.js — Usuarios del dashboard (demo académica)
-// Passwords almacenadas como SHA-256 hex (nunca en texto plano).
-// Generar hash: echo -n "tupassword" | sha256sum
+// ------------------------------------------------------------
+// PROPÓSITO: directorio de usuarios permitidos por login.html.
+// Las contraseñas se almacenan como hash SHA-256 en hexadecimal
+// (nunca en texto plano) y se comparan contra el hash calculado
+// en el navegador.
+//
+// Generar hash:  echo -n "tupassword" | sha256sum
+//
+// Advertencia: la contraseña en claro junto al hash es solo para
+// conveniencia de la demo académica — NO replicar en producción.
+//
+// Documentado: 2026-09-18
 // ============================================================
+/**
+ * Lista de usuarios registrados para el acceso al dashboard.
+ *
+ * @global
+ * @type {Array<Object>}
+ * @property {string} usuario - Nombre de usuario (login).
+ * @property {string} nombre  - Nombre visible del usuario/área.
+ * @property {string} rol     - Rol para permisos (Administrador, Cobranzas, Analista).
+ * @property {string} hash    - SHA-256 hex de la contraseña.
+ */
 const USUARIOS = [
   {
     usuario: "admin",

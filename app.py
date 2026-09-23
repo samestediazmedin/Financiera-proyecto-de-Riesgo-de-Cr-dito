@@ -1,13 +1,31 @@
-"""Motor de Analisis de Riesgos — 100% local (localhost) — v2 OpenPencil.
+"""Motor de Análisis de Riesgos — 100% local (localhost) — v2 OpenPencil.
 
-Ejecutar con:  .venv\\\\Scripts\\\\streamlit.exe run app.py
-Lee los CSV limpios de data/processed/ (generados por src/utils/loaders.py).
-Integra mejoras de proyecto_riesgo_express/index.mejorado.html:
+Propósito
+---------
+Dashboard interactivo en Streamlit para el análisis del riesgo de crédito del
+sector financiero colombiano. Consume únicamente los CSV limpios generados en
+``data/processed/`` (ver :mod:`src.utils.loaders`) y replica en Python las
+mejoras de la interfaz ``proyecto_riesgo_express/index.mejorado.html``:
+
 - Tokens CSS (:root vars, grid 8px, radius, shadow)
 - Header sticky con filtros Todos/Alto/Medio/Bajo + Exportar CSV + Automatizar
-- KPIs con icono/tendencia/tabular-nums + % perdida
-- Tabla busqueda/orden/sticky thead/empty state/accesible
-- Charts con aria-label/tooltips COP y panel automatizacion
+- KPIs con icono/tendencia/tabular-nums + % pérdida
+- Tabla búsqueda/orden/sticky thead/empty state/accesible
+- Charts con aria-label/tooltips COP y panel de automatización
+
+Pestañas
+--------
+1. Vista SFC (Superfinanciera): tabla filtrable + cartera por producto.
+2. Vista ICETEX: tabla + top departamentos por % de cartera vencida.
+3. Análisis de Riesgo: evolución del % vencida + calificación A–E.
+4. Asesor IA (Gemini): preguntas de negocio sobre la cartera filtrada
+   (opcional, requiere ``GEMINI_API_KEY``; ver :mod:`src.utils.gemini_advisor`).
+
+Ejecución
+---------
+    .venv\\Scripts\\streamlit.exe run app.py
+
+Documentado: 2026-09-18.
 """
 import os
 import io
@@ -67,6 +85,16 @@ with c2:
 # ---------------------------------------------------------------------------
 @st.cache_data
 def cargar_datos_locales():
+    """Carga los CSV limpios de ICETEX y SFC desde ``data/processed/``.
+
+    La función está cacheada por Streamlit (``@st.cache_data``), por lo que
+    la lectura de disco solo ocurre la primera vez o al recargar la app.
+
+    Returns:
+        tuple[pandas.DataFrame, pandas.DataFrame]: ``(df_icetex, df_sfc)``.
+        Si algún archivo no existe devuelve un DataFrame vacío; la columna
+        ``fecha_corte`` se convierte a ``datetime`` cuando está presente.
+    """
     ruta_icetex = os.path.join("data", "processed", "icetex_limpio.csv")
     ruta_sfc = os.path.join("data", "processed", "sfc_limpio.csv")
     df_icetex = pd.read_csv(ruta_icetex) if os.path.exists(ruta_icetex) else pd.DataFrame()
@@ -88,6 +116,17 @@ if not df_sfc.empty:
     df_sfc["pct_vencida"] = df_sfc["vencida_total"] / df_sfc["saldo_total_cartera"].replace(0, pd.NA) * 100
     # Clasificacion riesgo derivada (Alto/Medio/Bajo) — espejo de index.mejorado.html
     def clasificar_riesgo(p):
+        """Clasifica un registro SFC según su % de cartera vencida.
+
+        Umbrales (espejo del frontend express): >=10% → Alto, >=5% → Medio,
+        resto (incluido NaN) → Bajo.
+
+        Args:
+            p (float | None): Porcentaje de cartera vencida del registro.
+
+        Returns:
+            str: Nivel de riesgo ``"Alto"``, ``"Medio"`` o ``"Bajo"``.
+        """
         if pd.isna(p): return "Bajo"
         if p >= 10: return "Alto"
         if p >= 5: return "Medio"
@@ -103,11 +142,28 @@ else:
 
 # Helpers formato COP
 def fmt_cop(n):
+    """Formatea un monto en pesos colombianos con separador de miles ``.``.
+
+    Args:
+        n (float | int): Monto en COP.
+
+    Returns:
+        str: Monto con formato ``$1.234.567``; si el valor no es numérico
+        devuelve ``str(n)`` sin romper el renderizado.
+    """
     try:
         return f"${n:,.0f}".replace(",", ".")
     except: return str(n)
 
-def fmt_cop_billions(n):
+def fmt_cop_billons(n):
+    """Formatea un monto COP en billones/miles de millones con coma decimal.
+
+    Args:
+        n (float | int): Monto en COP.
+
+    Returns:
+        str: Valor escalado a ``$X,Y M`` con convención decimal colombiana.
+    """
     return f"${n/1e9:,.1f} M".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ---------------------------------------------------------------------------
@@ -188,6 +244,8 @@ if st.button("⚡ Automatizar alertas", type="primary"):
     st.session_state.show_auto = not st.session_state.show_auto
 
 if st.session_state.show_auto and not df_filtrado.empty:
+    # Reglas de criticidad: nivel Alto, >=10% vencida, o vencida >= 30% del saldo.
+    # Si ningún registro cumple, se toman los 5 con mayor % vencida como muestra.
     mask_crit = ((df_filtrado["nivel_riesgo"] == "Alto") | (df_filtrado["pct_vencida"].fillna(0) >= 10) | (df_filtrado["vencida_total"].fillna(0) >= df_filtrado["saldo_total_cartera"].fillna(0) * 0.3)).fillna(False)
     criticos = df_filtrado[mask_crit]
     if criticos.empty:
@@ -201,6 +259,7 @@ if st.session_state.show_auto and not df_filtrado.empty:
 </div>
 """, unsafe_allow_html=True)
     # Lista criticos
+    # Cada alerta recibe una acción recomendada según la regla que incumpla.
     for _, r in criticos.head(8).iterrows():
         pct = r.get("pct_vencida", 0)
         pct = 0 if pd.isna(pct) else float(pct)

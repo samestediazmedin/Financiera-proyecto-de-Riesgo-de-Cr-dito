@@ -1,11 +1,22 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     login.html — Pantalla de acceso al dashboard de Riesgo de Crédito
+     ------------------------------------------------------------
+     PROPÓSITO: autenticación client-side de la demo académica.
+     Flujo: hash SHA-256 de la contraseña (Web Crypto con respaldo
+     en sha256.js) -> comparación contra usuarios.js -> sesión en
+     sessionStorage (o token en URL como fallback) -> redirección
+     a index.mejorado.html. Documentado: 2026-09-18
+     ============================================================ -->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso — Dashboard de Riesgo de Crédito</title>
+  <!-- Tailwind precompilado local (vendor/) + fallback JS de SHA-256 -->
   <link rel="stylesheet" href="vendor/tailwind.css">
   <script src="sha256.js"></script>
+  <!-- Estilos de la página: tokens de color, tipografía y animación "shake" de error -->
   <style>
     :root { --color-bg:#0f172a; --color-surface:#1e293b; --color-border:#334155; }
     body { font-family: ui-sans-serif, system-ui, sans-serif; }
@@ -15,7 +26,9 @@
 </head>
 <body class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#134e4a 100%)">
 
+<!-- ====== Tarjeta de login (única sección visible de la página) ====== -->
   <main class="w-full max-w-sm">
+    <!-- Cabecera con logo + título -->
     <section id="card" class="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl p-7">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 text-xl font-black">◈</div>
@@ -25,6 +38,8 @@
         </div>
       </div>
 
+      <!-- Formulario: usuario + contraseña (con toggle de visibilidad),
+           mensajes de error/aviso y botón de envío -->
       <form onsubmit="return intentarLogin(event)" class="space-y-4" novalidate>
         <div>
           <label for="usuario" class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Usuario</label>
@@ -60,10 +75,19 @@
   </main>
 
   <script src="usuarios.js"></script>
+  <!-- ====== Lógica de autenticación ====== -->
   <script>
+    /** Clave de sessionStorage compartida con auth.js. */
     const KEY = 'sesionRiesgo';
 
-    // SHA-256: Web Crypto si existe, sino fallback JS puro (sha256.js)
+    /**
+     * Calcula el hash SHA-256 de un texto.
+     * Usa Web Crypto (crypto.subtle) si está disponible; si falla o no
+     * existe (contextos file://), cae al fallback puro de sha256.js.
+     * @param {string} texto - Entrada a hashear (contraseña).
+     * @returns {Promise<string>} Hash hexadecimal de 64 caracteres.
+     * @throws {Error} Si no hay ningún mecanismo SHA-256 disponible.
+     */
     async function calcularHash(texto) {
       try {
         if (window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === 'function') {
@@ -76,13 +100,29 @@
       return h;
     }
 
+    /**
+     * Alterna la visibilidad de la contraseña (password <-> text).
+     */
     function togglePassword() {
       const inp = document.getElementById('password');
       inp.type = inp.type === 'password' ? 'text' : 'password';
     }
 
+    /**
+     * Codifica una cadena Unicode en base64 (para el token de sesión en URL).
+     * @param {string} str - Texto a codificar.
+     * @returns {string} Representación base64 segura para URL.
+     */
     function b64Unicode(str) { return btoa(unescape(encodeURIComponent(str))); }
 
+    /**
+     * Maneja el submit del formulario de login.
+     * Valida campos, hashea la contraseña, busca el usuario en USUARIOS y
+     * crea la sesión. Si sessionStorage está bloqueado, avisa y usa el
+     * token en URL como respaldo.
+     * @param {Event} ev - Evento de submit.
+     * @returns {boolean} Siempre false (evita el envío real del form).
+     */
     async function intentarLogin(ev) {
       ev.preventDefault();
       const usuario = document.getElementById('usuario').value.trim().toLowerCase();
@@ -129,6 +169,13 @@
       return false;
     }
 
+    /**
+     * Redirige al dashboard tras un login exitoso.
+     * Adjunta la sesión como token base64 en el hash de la URL
+     * (#s=...) como respaldo; auth.js lo detecta y lo migra a
+     * sessionStorage.
+     * @param {Object} sesion - Objeto de sesión {usuario, nombre, rol, ts}.
+     */
     function ir(sesion) {
       // Token en hash como respaldo (auth.js lo detecta y migra a sessionStorage)
       location.href = 'index.mejorado.html#s=' + encodeURIComponent(b64Unicode(JSON.stringify(sesion)));

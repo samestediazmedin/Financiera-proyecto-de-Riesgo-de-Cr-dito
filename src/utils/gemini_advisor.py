@@ -1,14 +1,19 @@
 ﻿"""Asesor de riesgo financiero con IA (Google Gemini) — v2.
 
-Convierte los agregados de la cartera SFC en contexto para el modelo y
-responde preguntas de negocio en lenguaje natural.
+Propósito
+---------
+Convierte los agregados de la cartera SFC en contexto para el modelo Gemini
+y responde preguntas de negocio en lenguaje natural (pestaña "Asesor IA"
+del dashboard Streamlit). Sin key configurada el asesor responde con un
+aviso amigable y la app sigue funcionando con normalidad.
 
 Configuración de la API key (cualquiera de las dos):
   1) Variable de entorno:  GEMINI_API_KEY
   2) Archivo .env en la raíz del proyecto con:  GEMINI_API_KEY=tu_key
 
 La key se obtiene gratis en https://aistudio.google.com
-Sin key configurada el asesor responde con un aviso (la app sigue funcionando).
+
+Documentado: 2026-09-18.
 """
 from __future__ import annotations
 
@@ -23,7 +28,13 @@ MODELOS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]
 
 
 def _cargar_dotenv() -> None:
-    """Carga GEMINI_API_KEY desde .env del proyecto si no viene en el entorno."""
+    """Carga ``GEMINI_API_KEY`` desde el ``.env`` del proyecto si no viene en el entorno.
+
+    Implementación mínima de dotenv: recorre el archivo línea a línea,
+    localiza la clave ``GEMINI_API_KEY`` y la vuelca en ``os.environ``
+    (quitando comillas y espacios). No sobrescribe un valor ya existente
+    en el entorno.
+    """
     if os.getenv("GEMINI_API_KEY"):
         return
     env = RAIZ / ".env"
@@ -35,7 +46,26 @@ def _cargar_dotenv() -> None:
 
 
 def consultar_asesor_gemini(pregunta: str, resumen: dict, top_entidades: str = "") -> str:
-    """Consulta Gemini con el contexto de la cartera. Devuelve texto siempre."""
+    """Consulta a Gemini con el contexto de la cartera; devuelve texto siempre.
+
+    Construye un prompt de sistema (rol de analista senior de riesgo de
+    crédito en Colombia) con los agregados del filtro activo del dashboard
+    y prueba en orden los modelos de :data:`MODELOS` (si uno responde 404,
+    pasa al siguiente).
+
+    Args:
+        pregunta: Pregunta del usuario en lenguaje natural.
+        resumen: Agregados del filtro activo; claves esperadas
+            ``total_monto``, ``pct_vencida``, ``registros``,
+            ``cant_alto_riesgo`` y ``score_prom``.
+        top_entidades: Texto opcional con las entidades de mayor %
+            vencida para dar más contexto al modelo.
+
+    Returns:
+        str: Respuesta del modelo en Markdown, o un mensaje de aviso
+        (key faltante, librería no instalada, o error del último intento).
+        Nunca lanza excepciones hacia la capa de UI.
+    """
     _cargar_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -86,6 +116,11 @@ dashboard para obtenerlos."""
 
 
 def sugerencias_rapidas() -> list[str]:
+    """Devuelve 3 preguntas sugeridas para los botones preset del dashboard.
+
+    Returns:
+        list[str]: Preguntas de negocio listas para consultar al asesor.
+    """
     return [
         "¿Qué acciones tomarías con los registros de alto riesgo?",
         "Resume la salud de la cartera en 3 conclusiones ejecutivas",

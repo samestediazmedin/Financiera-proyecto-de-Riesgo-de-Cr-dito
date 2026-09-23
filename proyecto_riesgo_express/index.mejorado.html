@@ -1,10 +1,26 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     index.mejorado.html — RiskPulse (dashboard v2)
+     ------------------------------------------------------------
+     PROPÓSITO: dashboard principal del proyecto. 5 pestañas:
+       1. Dashboard      — donut SVG interactivo por nivel de riesgo,
+                           drilldown de clientes y charts suplementarios.
+       2. Simulador      — stress test what-if: reasignación por nivel,
+                           multiplicador de PD, LGD y VaR/ES Monte Carlo.
+       3. Cartera        — CRUD de clientes simulados (localStorage).
+       4. Sistema Real   — agregados SFC/ICETEX/IEFIC (datos_sistema.js).
+       5. Asesor IA      — consultas a Gemini con la key del navegador.
+     Autenticación por auth.js; datos demo en datos.js. Dependencias
+     locales en vendor/ (Tailwind, Chart.js, FontAwesome, fuentes).
+     Documentado: 2026-09-18
+     ============================================================ -->
 <html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RiskPulse — Plataforma de Análisis de Riesgo y Cartera de Crédito</title>
 
+    <!-- Guardián de sesión: redirige a login.html si no hay sesión válida -->
     <script src="auth.js"></script>
 
     <!-- Fonts -->
@@ -19,6 +35,8 @@
     <!-- Chart.js -->
     <script src="vendor/chart.umd.js"></script>
 
+    <!-- Estilos propios: scrollbar, paneles glass, tema claro (body.light),
+         estados del donut SVG, pestañas de navegación y animaciones -->
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
@@ -62,7 +80,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased transition-colors duration-300" id="body-root">
 
-    <!-- Navigation Bar -->
+    <!-- ====== Barra de navegación: logo, pestañas, tema, usuario y acciones ====== -->
     <nav class="sticky top-0 z-40 w-full glass-panel border-b border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-center justify-between gap-3 h-16">
@@ -112,10 +130,10 @@
 
                 </nav>
 
-    <!-- Main Application Container -->
+    <!-- ====== Contenedor principal de la aplicación ====== -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- Top Overview Header & Quick KPI Badges -->
+        <!-- ====== Cabecera de resumen + KPIs rápidos (afecta a todas las pestañas) ====== -->
         <div class="glass-panel rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div class="absolute -right-10 -top-10 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
@@ -149,7 +167,7 @@
                 </div>
             </div>
         </div>
-        <!-- TAB 1: DASHBOARD VIEW -->
+        <!-- ====== PESTAÑA 1: DASHBOARD (donut interactivo + drilldown + charts) ====== -->
         <div id="tab-content-dashboard" class="space-y-6 animate-fade-in">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Interactive SVG Donut -->
@@ -179,7 +197,7 @@
                     <div class="w-full flex flex-wrap justify-center gap-2.5 mt-4" id="legend-container"></div>
                 </div>
 
-                <!-- Detail Drilldown Drawer -->
+                <!-- Panel lateral: detalle del nivel seleccionado (drilldown) -->
                 <div class="lg:col-span-5 glass-panel rounded-2xl p-6 shadow-lg flex flex-col justify-between" id="detail-drawer">
                     <div class="space-y-4">
                         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -218,7 +236,7 @@
                 </div>
             </div>
 
-            <!-- Supplementary Charts -->
+            <!-- Charts suplementarios: evolución SFC real + concentración por nivel -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="glass-panel rounded-2xl p-6 shadow-lg">
                     <div class="flex items-center justify-between mb-4">
@@ -258,7 +276,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: SCENARIO & STRESS TEST SIMULATOR -->
+            <!-- ====== PESTAÑA 2: SIMULADOR DE ESTRÉS (what-if + VaR Monte Carlo) ====== -->
         <div id="tab-content-simulator" class="hidden space-y-6 animate-fade-in">
             <div class="glass-panel rounded-2xl p-6 shadow-lg">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
@@ -358,7 +376,7 @@
                 </div>
             </div>
         </div>
-        <!-- TAB 3: CARTERA MANAGER -->
+        <!-- ====== PESTAÑA 3: GESTOR DE CARTERA (tabla CRUD con filtros) ====== -->
         <div id="tab-content-holdings" class="hidden space-y-6 animate-fade-in">
             <div class="glass-panel rounded-2xl p-6 shadow-lg space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -405,7 +423,7 @@
             </div>
         </div>
 
-        <!-- TAB 4: SISTEMA REAL SFC/ICETEX -->
+        <!-- ====== PESTAÑA 4: SISTEMA REAL SFC/ICETEX/IEFIC (datos_sistema.js) ====== -->
         <div id="tab-content-sistema" class="hidden space-y-6 animate-fade-in">
             <div class="glass-panel rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -452,7 +470,7 @@
             </div>
         </div>
 
-        <!-- TAB 5: GEMINI AI ADVISOR -->
+        <!-- ====== PESTAÑA 5: ASESOR IA (Gemini, key solo en localStorage) ====== -->
         <div id="tab-content-ai-advisor" class="hidden space-y-6 animate-fade-in">
             <div class="glass-panel rounded-2xl p-6 shadow-lg space-y-6">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -519,12 +537,13 @@
             </div>
         </div>
 
+        <!-- ====== Pie de página ====== -->
         <footer class="text-center text-slate-600 text-xs py-4">
             RiskPulse — diseño original adaptado al proyecto de Riesgo de Crédito · datos reales SFC/ICETEX · VaR Monte Carlo · <a href="index.html" class="underline hover:text-slate-400">ver v1</a>
         </footer>
     </main>
 
-    <!-- Modal: Add Cliente -->
+    <!-- ====== Modal: alta/edición de cliente (formulario del gestor de cartera) ====== -->
     <div id="modal-holding" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
         <div class="glass-panel w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-800 relative space-y-5">
             <div class="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -569,18 +588,25 @@
         </div>
     </div>
 
-    <!-- Toast Overlay -->
+    <!-- ====== Contenedor de notificaciones toast (esquina inferior derecha) ====== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
+    <!-- ====== Carga de datos + lógica de la app (3 bloques <script>) ====== -->
     <script src="datos.js"></script>
     <script src="datos_sistema.js"></script>
     <script>
         'use strict';
         // ============================================================
-        // Estado global — modelo RiskPulse adaptado a cartera de crédito
+        // Bloque 1/3 — Estado global — modelo RiskPulse adaptado a cartera de crédito
         // ============================================================
+        /** Clave de localStorage donde persiste la cartera del usuario. */
         const STORE_KEY = 'riskpulse_cartera_riesgo';
 
+        /**
+         * Construye el estado inicial de la cartera mapeando datos.js
+         * (6 clientes simulados) al modelo categorías/holdings de RiskPulse.
+         * @returns {Array<Object>} Categorías bajo/medio/alto con sus clientes.
+         */
         function categoriasIniciales() {
             // Mapea datos.js (6 clientes) al modelo categorías/holdings de RiskPulse
             const defs = [
@@ -597,6 +623,11 @@
             }));
         }
 
+        /**
+         * Estado global de la app: categorías de cartera (persistidas en
+         * localStorage), pestaña activa, nivel seleccionado en el donut,
+         * tema y parámetros del simulador.
+         */
         let state = {
             categories: (function(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)) || categoriasIniciales(); } catch(e){ return categoriasIniciales(); } })(),
             activeTab: 'dashboard',
@@ -605,18 +636,33 @@
             simulation: { low: 0, med: 0, high: 0, mult: 10, rec: 40 }
         };
 
+        // Instancias Chart.js vivas (para poder destruirlas antes de re-render)
         let performanceChartInstance = null, riskDistChartInstance = null, scenarioCompareChartInstance = null;
         const chartsSistema = {};
+        // Flags de inicialización perezosa: pestañas que se renderizan al abrirse por 1ª vez
         let simIniciado = false, sisIniciado = false;
 
+        // ====== Utilidades de formato y agregación ======
         const fmtCOP = new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+        /** Formatea un número como moneda COP (sin decimales). */
         function formatCurrency(v){ return fmtCOP.format(Number(v)||0); }
+        /** Formatea una fracción/porcentaje con 1 decimal y sufijo %. */
         function formatPercent(v){ return (Math.round(v*10)/10)+'%'; }
+        /** Suma el valor de todos los clientes de todas las categorías. */
         function getTotalPortfolioValue(){ return state.categories.reduce(function(s,c){ return s + c.holdings.reduce(function(a,h){ return a+(Number(h.value)||0); },0); },0); }
+        /** Suma el valor de los holdings de una categoría. */
         function getCategoryValue(cat){ return cat.holdings.reduce(function(s,h){ return s+(Number(h.value)||0); },0); }
+        /** Aplana todas las categorías en una lista única de clientes (+info de su categoría). */
         function todosClientes(){ const out=[]; state.categories.forEach(function(c){ c.holdings.forEach(function(h){ out.push(Object.assign({},h,{catKey:c.key,catLabel:c.label,catColor:c.colorVar})); }); }); return out; }
+        /** Persiste las categorías de la cartera en localStorage (silencioso si falla). */
         function saveState(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state.categories)); } catch(e){} }
 
+        /**
+         * Muestra una notificación toast temporal (3.2 s) en la esquina
+         * inferior derecha.
+         * @param {string} message - Texto a mostrar.
+         * @param {string} [type]  - 'error' | 'warn' | informativo (default).
+         */
         function showToast(message, type){
             const c=document.getElementById('toast-container');
             const t=document.createElement('div');
@@ -629,6 +675,13 @@
             setTimeout(function(){ t.classList.remove('on'); setTimeout(function(){ t.remove(); },300); },3200);
         }
 
+        /**
+         * Cambia la pestaña activa (dashboard/simulator/holdings/sistema/
+         * ai-advisor): alterna visibilidad de contenedores y estado del nav,
+         * e inicializa perezosamente las pestañas pesadas (simulador y
+         * sistema real) solo la primera vez que se abren.
+         * @param {string} tabId - Identificador de la pestaña destino.
+         */
         function switchTab(tabId){
             state.activeTab = tabId;
             ['dashboard','simulator','holdings','sistema','ai-advisor'].forEach(function(t){
@@ -640,6 +693,7 @@
             if(tabId==='holdings'){ renderHoldingsTable(); }
         }
 
+        /** Alterna tema oscuro/claro, lo persiste y re-renderiza el dashboard. */
         function toggleTheme(){
             const b=document.getElementById('body-root');
             state.theme = (state.theme==='dark') ? 'light' : 'dark';
@@ -654,6 +708,14 @@
         // ============================================================
         // Donut SVG interactivo (fieles a RiskPulse)
         // ============================================================
+        /**
+         * Devuelve el path SVG de un sector anular (arco de donut).
+         * @param {number} startAngle  - Ángulo inicial en radianes.
+         * @param {number} endAngle    - Ángulo final en radianes.
+         * @param {number} innerRadius - Radio interior (grosor del aro).
+         * @param {number} outerRadius - Radio exterior.
+         * @returns {string} Atributo `d` del elemento <path>.
+         */
         function getArcPath(startAngle, endAngle, innerRadius, outerRadius){
             const sin=Math.sin, cos=Math.cos;
             const x1=outerRadius*cos(startAngle), y1=outerRadius*sin(startAngle);
@@ -664,6 +726,11 @@
             return 'M '+x1+' '+y1+' A '+outerRadius+' '+outerRadius+' 0 '+largeArcFlag+' 1 '+x2+' '+y2+' L '+x3+' '+y3+' A '+innerRadius+' '+innerRadius+' 0 '+largeArcFlag+' 0 '+x4+' '+y4+' Z';
         }
 
+        /**
+         * Dibuja el donut SVG de asignación por nivel de riesgo: sectores
+         * (con gap), etiquetas porcentuales externas, leyenda clicable y
+         * texto central (total o nivel seleccionado).
+         */
         function renderDonutChart(){
             const totalVal=getTotalPortfolioValue();
             const slicesGroup=document.getElementById('slices-group');
@@ -723,12 +790,19 @@
             }
         }
 
+        /** Selecciona/deselecciona un nivel en el donut y refresca donut + panel lateral. */
         function selectCategory(catKey){
             state.selectedCategoryKey = (state.selectedCategoryKey===catKey) ? null : catKey;
             renderDonutChart(); renderCategoryDrawer();
         }
+        /** Limpia la selección del donut (botón "Restablecer"). */
         function resetChartSelection(){ state.selectedCategoryKey=null; renderDonutChart(); renderCategoryDrawer(); }
 
+        /**
+         * Renderiza el panel lateral de detalle: resumen general (sin
+         * selección: top 5 clientes de toda la cartera) o el detalle del
+         * nivel seleccionado (monto, PD promedio y composición de clientes).
+         */
         function renderCategoryDrawer(){
             const totalVal=getTotalPortfolioValue();
             const drawerBadge=document.getElementById('detail-color-badge');
@@ -773,8 +847,13 @@
     <script>
         'use strict';
         // ============================================================
-        // Charts suplementarios + KPIs + automatización
+        // Bloque 2/3 — Charts suplementarios + KPIs + automatización
         // ============================================================
+        /**
+         * Crea los dos charts suplementarios del dashboard: la evolución
+         * histórica del % vencida (serie SFC real de datos_sistema.js, con
+         * placeholder si falta) y la concentración porcentual por nivel.
+         */
         function initSupplementaryCharts(){
             const ctxPerf=document.getElementById('performanceChart') && document.getElementById('performanceChart').getContext('2d');
             if(ctxPerf){
@@ -810,6 +889,11 @@
             }
         }
 
+        /**
+         * Renderiza todo el dashboard: KPIs de cabecera (valor total,
+         * % vencida, score y nº de clientes), donut, panel lateral y
+         * charts suplementarios.
+         */
         function renderDashboard(){
             const totalVal=getTotalPortfolioValue();
             const todos=todosClientes();
@@ -823,6 +907,12 @@
             renderDonutChart(); renderCategoryDrawer(); initSupplementaryCharts();
         }
 
+        /**
+         * Ejecuta la automatización de alertas para Cobranzas: filtra
+         * clientes críticos (Alto riesgo, PD ≥ 0.3 o mora ≥ 90 días),
+         * asigna la acción por reglas de mora/PD, puebla el panel y
+         * muestra un toast.
+         */
         function automatizarAlertas(){
             const todos=todosClientes();
             const criticos=todos.filter(function(h){ return h.risk==='Alto' || (h.pd||0)>=0.3 || (h.mora||0)>=90; });
@@ -838,6 +928,10 @@
             showToast(criticos.length+' alertas generadas para Cobranzas');
         }
 
+        /**
+         * Exporta la cartera completa (todos los clientes) como CSV
+         * descargable: ID, Nombre, Nivel, Monto, PD, Score y Mora.
+         */
         function exportarCSV(){
             const headers=['ID','Nombre','Nivel','Monto','PD','Score','Mora'];
             const rows=todosClientes().map(function(h){ return [h.id,h.name,h.catLabel,h.value,h.pd||0,h.score||'',h.mora||0].join(','); });
@@ -849,8 +943,14 @@
         // ============================================================
         // Simulador — reasignación + PD mult + recuperación + MC VaR
         // ============================================================
+        /**
+         * PRNG determinista (semilla fija) para el Monte Carlo del VaR.
+         * @param {number} seed - Semilla inicial.
+         * @returns {function():number} Generador de números en [0,1).
+         */
         function mulberry32(seed){ return function(){ let t=seed+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
 
+        /** Sincroniza los sliders del simulador con la distribución real actual de la cartera. */
         function initSimFromState(){
             const total=getTotalPortfolioValue();
             const get=function(key){ const c=state.categories.find(function(x){ return x.key===key; }); return c?getCategoryValue(c):0; };
@@ -859,6 +959,11 @@
             document.getElementById('sim-slider-high').value=total>0?Math.round(get('alto')/total*100):0;
         }
 
+        /**
+         * Aplica un escenario predefinido al simulador.
+         * @param {string} preset - 'base' | 'rate-hike' (PD×1.5) |
+         *   'recession' (PD×2) | 'bull-market' (PD×0.7).
+         */
         function applyPresetScenario(preset){
             if(preset==='base'){ initSimFromState(); state.simulation.mult=10; }
             else if(preset==='rate-hike'){ state.simulation.mult=15; }
@@ -869,6 +974,16 @@
             showToast('Escenario "'+preset.toUpperCase()+'" aplicado correctamente');
         }
 
+        /**
+         * Núcleo del simulador de estrés (se ejecuta en cada input):
+         *   1) Lee sliders (mix bajo/medio/alto, multiplicador de PD,
+         *      tasa de recuperación => LGD).
+         *   2) Calcula la EL simulada: total × mix × PD_nivel×mult × LGD.
+         *   3) Monte Carlo (2.000 iteraciones, semilla 42): VaR 95% y ES
+         *      sobre defaults Bernoulli por cliente reescalado.
+         *   4) Refresca indicadores en pantalla y el chart comparativo
+         *      de EL por nivel (actual vs. simulado).
+         */
         function updateSimulation(){
             const low=Number(document.getElementById('sim-slider-low').value);
             const med=Number(document.getElementById('sim-slider-med').value);
@@ -947,8 +1062,13 @@
     <script>
         'use strict';
         // ============================================================
-        // Gestor de cartera (CRUD) — fiel a RiskPulse Holdings Manager
+        // Bloque 3/3 — Gestor de cartera (CRUD) — fiel a RiskPulse Holdings Manager
         // ============================================================
+        /**
+         * Renderiza la tabla de cartera aplicando los filtros activos
+         * (búsqueda por nombre/ID, nivel de riesgo y estado de mora).
+         * Rellena además el <select> de niveles la primera vez.
+         */
         function renderHoldingsTable(){
             const tableBody=document.getElementById('holdings-table-body');
             const categorySelect=document.getElementById('filter-category');
@@ -988,15 +1108,23 @@
             tableBody.innerHTML=rowsHtml;
         }
 
+        /** Abre el modal de alta de cliente. */
         function openModal(){
             document.getElementById('modal-holding').classList.remove('hidden');
             document.getElementById('modal-holding').classList.add('flex');
         }
+        /** Cierra el modal y limpia el formulario. */
         function closeModal(){
             document.getElementById('modal-holding').classList.add('hidden');
             document.getElementById('modal-holding').classList.remove('flex');
             document.getElementById('form-holding').reset();
         }
+        /**
+         * Guarda un cliente nuevo desde el modal: lo añade a su categoría
+         * (con PD acotada a [0, 0.99] y valores por defecto), persiste en
+         * localStorage y refresca dashboard + tabla.
+         * @param {Event} e - Evento de submit del formulario.
+         */
         function saveHolding(e){
             e.preventDefault();
             const name=document.getElementById('form-name').value.trim();
@@ -1012,6 +1140,11 @@
                 showToast('Cliente "'+name+'" guardado correctamente');
             }
         }
+        /**
+         * Elimina un cliente de su categoría, persiste y refresca vistas.
+         * @param {string} catKey     - Clave de la categoría (bajo/medio/alto).
+         * @param {string} holdingId  - ID del cliente a eliminar.
+         */
         function deleteHolding(catKey, holdingId){
             const cat=state.categories.find(function(c){ return c.key===catKey; });
             if(cat){
@@ -1020,6 +1153,7 @@
                 showToast('Cliente eliminado','warn');
             }
         }
+        /** Restaura la cartera demo original (los 6 clientes de datos.js). */
         function restaurarCarteraInicial(){
             state.categories=categoriasIniciales(); saveState(); renderDashboard(); renderHoldingsTable();
             showToast('Cartera restaurada a los 6 clientes de datos.js');
@@ -1028,6 +1162,10 @@
         // ============================================================
         // Sistema Real (SFC/ICETEX)
         // ============================================================
+        /**
+         * Renderiza el buscador del codebook IEFIC: filtra las variables
+         * por nombre o etiqueta y pinta hasta 120 tarjetas de resultado.
+         */
         function renderIefic(){
             var d = (typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.iefic;
             var lista = document.getElementById('iefic-lista');
@@ -1040,6 +1178,13 @@
             }).join('') || '<p class="text-sm text-slate-500">Sin resultados.</p>';
         }
 
+        /**
+         * Renderiza la pestaña "Sistema Real" con DATOS_SISTEMA: badge de
+         * metadatos + 4 charts (serie % vencida, top productos con color
+         * según % vencida, doughnut de calificación A–E y barras ICETEX
+         * por departamento). Muestra el aviso de generación si falta el
+         * archivo datos_sistema.js.
+         */
         function renderSistema(){
             const tieneDatos=(typeof DATOS_SISTEMA!=='undefined') && DATOS_SISTEMA && DATOS_SISTEMA.serieVencida;
             document.getElementById('sis-empty').classList.toggle('hidden', tieneDatos);
@@ -1072,9 +1217,12 @@
         // ============================================================
         // Asesor IA — Gemini directo (key en localStorage, NUNCA en el repo)
         // ============================================================
+        /** Clave de localStorage donde el usuario guarda su GEMINI_API_KEY. */
         const IA_KEY='gemini_api_key_local';
+        /** Modelos por orden de preferencia (404 => probar el siguiente). */
         const IA_MODELOS=['gemini-3.6-flash','gemini-flash-latest','gemini-2.5-flash'];
 
+        /** Guarda la GEMINI_API_KEY escrita por el usuario en localStorage. */
         function guardarKeyIA(){
             const v=document.getElementById('ai-key-input').value.trim();
             if(!v){ showToast('Pega una key primero','warn'); return; }
@@ -1082,12 +1230,20 @@
             actualizarEstadoKey(); showToast('Key guardada en tu navegador (no se sube a ningún repo)');
             document.getElementById('ai-key-input').value='';
         }
+        /** Elimina la key de Gemini del navegador. */
         function borrarKeyIA(){ try { localStorage.removeItem(IA_KEY); } catch(e){} actualizarEstadoKey(); showToast('Key eliminada del navegador','warn'); }
+        /** Refresca el indicador de estado de la key en el panel de configuración. */
         function actualizarEstadoKey(){
             let tiene=false; try { tiene=!!localStorage.getItem(IA_KEY); } catch(e){}
             document.getElementById('ai-key-status').textContent=tiene?'✓ Key configurada en este navegador':'Sin key: usa la de tu .env en el Streamlit, o pégala aquí.';
         }
 
+        /**
+         * Construye el resumen textual de la cartera (monto total, PD
+         * promedio ponderada y composición por nivel) que sirve de
+         * contexto al asesor IA.
+         * @returns {string} Bloque de contexto en texto plano.
+         */
         function contextoCartera(){
             const todos=todosClientes(); const total=getTotalPortfolioValue();
             const el=todos.reduce(function(a,h){ return a+(h.value||0)*((h.pd)||0); },0);
@@ -1098,6 +1254,12 @@
             return 'Monto Total: '+formatCurrency(total)+'\nPD promedio ponderada: '+(total>0?el/total*100:0).toFixed(2)+'%\nComposición por nivel:\n'+comp;
         }
 
+        /**
+         * Llama a la API de Gemini (generateContent) con el prompt del
+         * usuario + contexto de cartera. Prueba los modelos de IA_MODELOS
+         * en orden (404 => siguiente) y pinta la respuesta en el panel.
+         * @param {string} prompt - Pregunta o instrucción para el modelo.
+         */
         async function llamarGemini(prompt){
             let key=null; try { key=localStorage.getItem(IA_KEY); } catch(e){}
             const out=document.getElementById('ai-output');
@@ -1126,6 +1288,10 @@
             }
         }
 
+        /**
+         * Lanza un prompt preset del asesor IA.
+         * @param {string} type - 'audit' | 'actions' | 'macro'.
+         */
         function runAIPrompt(type){
             const prompts={
                 audit:'Realiza una auditoría integral de riesgos de mi cartera: concentraciones peligrosas, vulnerabilidades y calidad crediticia por nivel.',
@@ -1134,14 +1300,20 @@
             };
             llamarGemini(prompts[type]);
         }
+        /** Envía la pregunta personalizada del input al asesor IA. */
         function sendCustomAIPrompt(){
             const input=document.getElementById('ai-custom-input');
             if(input.value.trim()){ llamarGemini(input.value.trim()); input.value=''; }
         }
 
         // ============================================================
-        // Init
+        // Init — arranque de la aplicación
         // ============================================================
+        /**
+         * Inicialización al cargar: restaura tema persistido, aplica clase
+         * dark/light al body y hace el primer render del dashboard, la
+         * tabla de cartera y el estado de la key IA.
+         */
         (function init(){
             let tema='dark';
             try { tema=localStorage.getItem('riskpulse_theme')||'dark'; } catch(e){}

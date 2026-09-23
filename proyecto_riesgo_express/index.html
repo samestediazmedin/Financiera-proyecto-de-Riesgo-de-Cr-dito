@@ -1,13 +1,23 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     index.html — Dashboard de Riesgo Financiero (versión v1)
+     ------------------------------------------------------------
+     PROPÓSITO: primer dashboard del proyecto con datos simulados
+     (datos.js): KPIs de cartera, 3 gráficos Chart.js (doughnut,
+     barras y burbujas), panel de automatización de alertas y
+     tabla consolidada de las 3 bases unificadas. Requiere sesión
+     (auth.js). La versión mejorada está en index.mejorado.html.
+     Documentado: 2026-09-18
+     ============================================================ -->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <!-- Guardián de sesión: redirige a login.html si no hay sesión válida -->
   <script src="auth.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Financiero — Análisis de Riesgo de Crédito</title>
-  <!-- Tailwind CSS (CDN) -->
+  <!-- Dependencias: Tailwind CSS y Chart.js vía CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans p-6">
@@ -110,12 +120,15 @@
     </footer>
   </div>
 
+  <!-- Datos simulados (6 clientes) + lógica de renderizado de la v1 -->
   <script src="datos.js"></script>
   <script>
     // ============ Formato moneda COP ============
     const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
     // ============ 1. KPIs ============
+    // Exposición total, pérdida esperada (Σ monto×PD), clientes de alto
+    // riesgo y score promedio de la cartera simulada.
     const totalMonto = baseDatosConsolidada.reduce((acc, c) => acc + c.monto, 0);
     const perdidaEsperada = baseDatosConsolidada.reduce((acc, c) => acc + c.monto * c.probDefault, 0);
     const clientesAltoRiesgo = baseDatosConsolidada.filter(c => c.estado === 'Alto').length;
@@ -218,11 +231,18 @@
     });
 
     // ============ 4. Automatización ============
+    /**
+     * Genera el panel de alertas para Cobranzas: filtra clientes
+     * críticos (Alto riesgo, PD ≥ 0.3 o mora ≥ 90 días), calcula el
+     * monto en riesgo y asigna una acción recomendada por reglas.
+     * @global
+     */
     function automatizarAlertas() {
       const criticos = baseDatosConsolidada.filter(c => c.estado === 'Alto' || c.probDefault >= 0.3 || c.moraDias >= 90);
       const montoEnRiesgo = criticos.reduce((acc, c) => acc + c.monto, 0);
 
       const regla = (c) => {
+        // Reglas de negocio: jerarquía de acciones según mora y PD.
         if (c.moraDias >= 90) return 'Cobro jurídico / castigo de cartera';
         if (c.moraDias >= 30) return 'Gestión de cobranza preventiva';
         if (c.probDefault >= 0.4) return 'Reestructuración de crédito';

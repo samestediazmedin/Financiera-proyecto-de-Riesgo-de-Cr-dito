@@ -1,13 +1,35 @@
 // ============================================================
 // datos.js — Simulación de la unión de las 3 bases de datos
 // ------------------------------------------------------------
+// PROPÓSITO: datos de demostración (cartera simulada) que alimentan
+// la versión v1 del dashboard (index.html) y el estado inicial del
+// index.mejorado.html (modelo categorías/holdings de RiskPulse).
+//
 // Cruce conceptual por ID de cliente entre:
 //   1) Base de Clientes        (id, nombre)
 //   2) Base de Créditos        (monto, plazo, tasa)
 //   3) Base de Historial/Mora  (moraDias, score, probDefault)
 // Montos en COP (pesos colombianos).
+//
+// Documentado: 2026-09-18
 // ============================================================
 
+/**
+ * Cartera consolidada de demostración (6 clientes simulados).
+ * Representa el resultado de unir las 3 bases por ID de cliente.
+ *
+ * @global
+ * @type {Array<Object>}
+ * @property {string}  id           - Identificador del cliente (CLI-NNN).
+ * @property {string}  nombre       - Razón social del cliente.
+ * @property {number}  monto        - Monto expuesto en COP.
+ * @property {number}  plazo        - Plazo del crédito en meses.
+ * @property {number}  tasa         - Tasa efectivo anual en %.
+ * @property {number}  moraDias     - Días de mora actuales (0 = al día).
+ * @property {number}  score        - Score de crédito (0–1000, mayor = mejor).
+ * @property {number}  probDefault  - Probabilidad de incumplimiento (0–1).
+ * @property {string}  estado       - Nivel de riesgo: "Bajo" | "Medio" | "Alto".
+ */
 const baseDatosConsolidada = [
   {
     id: "CLI-001",

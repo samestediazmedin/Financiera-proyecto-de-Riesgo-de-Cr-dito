@@ -1,9 +1,21 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     ishikawa.html — Diagrama de Ishikawa (espina de pescado)
+     ------------------------------------------------------------
+     PROPÓSITO: visualizar las hipótesis de causa del problema
+     "dificultad para identificar y evaluar oportunamente el
+     riesgo de incumplimiento de crédito" (Etapa 1 del proyecto,
+     Grupo Estoicos). El diagrama se dibuja dinámicamente en un
+     SVG a partir de las categorías/causes definidas abajo.
+     Incluye botón de impresión/exportación a PDF.
+     Documentado: 2026-09-18
+     ============================================================ -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Diagrama de Ishikawa — Riesgo de Incumplimiento de Crédito</title>
+<!-- Estilos: tema claro, toolbar con botón imprimir y estilos @media print -->
 <style>
   body { font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; color: #0f172a; }
   .toolbar { max-width: 1500px; margin: 0 auto 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -22,21 +34,33 @@
 </style>
 </head>
 <body>
-  <div class="toolbar">
-    <div>
-      <h1>🐟 Diagrama de Ishikawa — Riesgo de Incumplimiento de Crédito</h1>
-      <p>Grupo Estoicos · Entidad financiera, proyecto de Riesgo de Crédito · Business Analytics &amp; Big Data II</p>
-    </div>
-    <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+<!-- ====== Barra superior: título del proyecto + botón imprimir ====== -->
+<div class="toolbar">
+  <div>
+    <h1>🐟 Diagrama de Ishikawa — Riesgo de Incumplimiento de Crédito</h1>
+    <p>Grupo Estoicos · Entidad financiera, proyecto de Riesgo de Crédito · Business Analytics &amp; Big Data II</p>
   </div>
-  <div class="card">
-    <svg id="ishikawa" viewBox="0 0 1500 920" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
+  <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
+<!-- ====== Lienzo: el SVG del diagrama se construye por JS ====== -->
+<div class="card">
+  <svg id="ishikawa" viewBox="0 0 1500 920" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
   <p class="footer-note">Las causas son hipótesis iniciales del grupo; se validarán con datos en la siguiente etapa (Business Analytics).</p>
 
 <script>
+// ====== Datos del diagrama ======
+
+/** Enunciado del problema (cabeza del pescado). */
 const problema = "Dificultad para identificar y evaluar oportunamente el riesgo de incumplimiento de las solicitudes de crédito";
 
+/**
+ * Categorías (espinas) del diagrama con sus causas hipotéticas.
+ * @type {Array<Object>}
+ * @property {string}        nombre  - Título de la categoría.
+ * @property {string}        lado    - "top" | "bottom": lado de la espina central.
+ * @property {Array<string>} causas - Hipótesis de causa colgando de la espina.
+ */
 const categorias = [
   { nombre: "PERSONAS", lado: "top", causas: [
     "Criterios diferentes entre analistas",
@@ -76,6 +100,7 @@ const categorias = [
   ]}
 ];
 
+/** Color de cada categoría (paleta institucional del diagrama). */
 const colores = {
   "PERSONAS": "#e11d48",
   "PROCESOS": "#d97706",
@@ -85,15 +110,29 @@ const colores = {
   "ENTORNO": "#475569"
 };
 
+// ====== Utilidades de dibujo SVG ======
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const svg = document.getElementById("ishikawa");
 
+/**
+ * Crea un elemento SVG con atributos.
+ * @param {string} name  - Tag SVG ("line", "rect", "text", "polygon").
+ * @param {Object} attrs - Atributos a asignar (x, y, fill, stroke...).
+ * @returns {SVGElement} Elemento listo para insertar en el SVG.
+ */
 function el(name, attrs) {
   const e = document.createElementNS(SVG_NS, name);
   for (const k in attrs) e.setAttribute(k, attrs[k]);
   return e;
 }
 
+/**
+ * Divide un texto en líneas de hasta `maxLen` caracteres (word-wrap).
+ * @param {string} text    - Texto original.
+ * @param {number} maxLen  - Longitud máxima por línea.
+ * @returns {Array<string>} Líneas resultantes.
+ */
 function wrapText(text, maxLen) {
   const words = text.split(" ");
   const lines = [];
@@ -106,7 +145,9 @@ function wrapText(text, maxLen) {
   return lines;
 }
 
-// ---- Espina central ----
+// ====== Render del diagrama ======
+
+// ---- Espina central (columna vertebral del pescado) ----
 svg.appendChild(el("line", { x1: 70, y1: 460, x2: 1210, y2: 460, stroke: "#334155", "stroke-width": 5 }));
 svg.appendChild(el("polygon", { points: "1210,452 1235,460 1210,468", fill: "#334155" }));
 

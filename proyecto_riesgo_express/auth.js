@@ -1,12 +1,30 @@
 ﻿// ============================================================
 // auth.js — Guardián de sesión + utilidades de logout
-// Incluir PRIMERO en toda página protegida (index*.html).
-// Sesión: sessionStorage con fallback a token en URL (#s=base64)
-// para navegadores que bloquean el almacenamiento.
+// ------------------------------------------------------------
+// PROPÓSITO: proteger las páginas del dashboard (index.html,
+// index.mejorado.html) redirigiendo a login.html si no hay una
+// sesión válida. Incluir PRIMERO en toda página protegida.
+//
+// Estrategia de sesión (en orden de preferencia):
+//   1) sessionStorage bajo la clave 'sesionRiesgo' (JSON).
+//   2) Fallback: token en URL (#s=base64) para navegadores que
+//      bloquean el almacenamiento; se migra a storage si es posible.
+//
+// Expone globalmente:
+//   window.__sesion — objeto de sesión {usuario, nombre, rol, ts}
+//   window.logout() — cierra sesión y redirige al login
+//
+// Documentado: 2026-09-18
 // ============================================================
 (function () {
+  /** Clave de sessionStorage donde persiste la sesión del usuario. */
   const KEY = 'sesionRiesgo';
 
+  /**
+   * Parsea JSON de forma segura.
+   * @param {string} raw - Texto JSON candidato.
+   * @returns {Object|null} Objeto parseado o null si el JSON es inválido.
+   */
   function parsear(raw) { try { return JSON.parse(raw); } catch (e) { return null; } }
 
   // 1) Intentar sessionStorage
@@ -34,7 +52,7 @@
 
   window.__sesion = sesion;
 
-  // 4) Chip de usuario + rol (si existe el elemento)
+  // 4) Chip de usuario + rol (si existe el elemento #user-chip en la página)
   document.addEventListener('DOMContentLoaded', function () {
     var chip = document.getElementById('user-chip');
     if (chip) {
@@ -46,6 +64,10 @@
   });
 
   // 5) Logout global
+  /**
+   * Cierra la sesión: borra sessionStorage y redirige al login.
+   * @global
+   */
   window.logout = function () {
     try { sessionStorage.removeItem(KEY); } catch (e) {}
     location.replace('login.html');

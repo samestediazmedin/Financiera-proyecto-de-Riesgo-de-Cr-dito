@@ -1,7 +1,15 @@
 """Carga y normalización de los datasets del proyecto de riesgo de crédito.
 
-Reglas de oro:
-- Nunca modificar data/raw/ (datos crudos inmutables).
+Propósito
+---------
+Única fuente de verdad para leer los datos crudos de ``data/raw/`` y entregar
+DataFrames limpios y tipados. La usan los notebooks (01–05), el dashboard
+``app.py`` y el exportador de agregados BI.
+
+Reglas de oro
+-------------
+- Nunca modificar ``data/raw/`` (datos crudos inmutables); lo limpio se
+  guarda en ``data/processed/`` vía :func:`save_processed`.
 - Formatos de monto colombianos (¡son DIFERENTES entre datasets!):
     * ICETEX:  '$ 14,629,091'  -> comas = separador de miles  -> 14629091.0
     * SFC:     '37.651.351.298' / '32.878.868.825,55' -> puntos = miles, coma = decimal
@@ -9,6 +17,8 @@ Reglas de oro:
 - CSV de SFC: separador coma, encoding UTF-8 (verificado por bytes; AGENTS.md
   indicaba ';' y latin-1 pero el archivo descargado no los usa).
 - XML de BANREP: requiere lxml.
+
+Documentado: 2026-09-18.
 """
 from __future__ import annotations
 
@@ -24,6 +34,17 @@ PROCESSED = Path(__file__).resolve().parents[2] / "data" / "processed"
 # ---------------------------------------------------------------------------
 
 def _to_float(s) -> float:
+    """Convierte un valor a ``float`` de forma tolerante.
+
+    Helper privado compartido por todos los parsers de este módulo.
+
+    Args:
+        s: Valor de entrada (str, float, None...).
+
+    Returns:
+        float: El número parseado, o ``np.nan`` si es nulo, vacío,
+        pertenece a ``{"-", "NA", "N/A"}`` o no es numérico.
+    """
     if s is None or (isinstance(s, float) and np.isnan(s)):
         return np.nan
     s = str(s).strip()
@@ -36,7 +57,14 @@ def _to_float(s) -> float:
 
 
 def parse_monto_icetex(s) -> float:
-    """'$ 14,629,091' -> 14629091.0  (comas = miles, sin decimales)."""
+    """Parsea un monto con formato ICETEX: comas = miles, sin decimales.
+
+    Args:
+        s: Cadena tipo ``'$ 14,629,091'`` (el ``$`` es opcional).
+
+    Returns:
+        float: ``14629091.0``, o ``np.nan`` si el valor es nulo/vacío.
+    """
     if s is None or (isinstance(s, float) and np.isnan(s)):
         return np.nan
     s = str(s).strip()
@@ -47,8 +75,15 @@ def parse_monto_icetex(s) -> float:
 
 
 def parse_monto_sfc(s) -> float:
-    """'37.651.351.298' -> 37651351298.0 ; '32.878.868.825,55' -> 32878868825.55
-    (puntos = miles, coma = decimal)."""
+    """Parsea un monto con formato SFC: puntos = miles, coma = decimal.
+
+    Args:
+        s: Cadena tipo ``'37.651.351.298'`` o ``'32.878.868.825,55'``.
+
+    Returns:
+        float: ``37651351298.0`` / ``32878868825.55``, o ``np.nan`` si el
+        valor es nulo/vacío.
+    """
     if s is None or (isinstance(s, float) and np.isnan(s)):
         return np.nan
     s = str(s).strip()
@@ -57,7 +92,14 @@ def parse_monto_sfc(s) -> float:
 
 
 def parse_porcentaje(s) -> float:
-    """'34.21%' o '100%' -> 34.21 / 100.0."""
+    """Parsea un porcentaje textual a número (sin el factor 1/100).
+
+    Args:
+        s: Cadena tipo ``'34.21%'`` o ``'100%'`` (coma o punto decimal).
+
+    Returns:
+        float: ``34.21`` / ``100.0``, o ``np.nan`` si el valor es nulo/vacío.
+    """
     if s is None or (isinstance(s, float) and np.isnan(s)):
         return np.nan
     s = str(s).strip().replace("%", "").replace(",", ".")
@@ -65,7 +107,14 @@ def parse_porcentaje(s) -> float:
 
 
 def parse_cantidad(s) -> float:
-    """'3,355' -> 3355.0 (comas de miles)."""
+    """Parsea una cantidad entera con comas de miles.
+
+    Args:
+        s: Cadena tipo ``'3,355'`` (conteos de créditos/clientes).
+
+    Returns:
+        float: ``3355.0``, o ``np.nan`` si el valor es nulo/vacío.
+    """
     if s is None or (isinstance(s, float) and np.isnan(s)):
         return np.nan
     s = str(s).strip().replace(",", "")
@@ -77,7 +126,21 @@ def parse_cantidad(s) -> float:
 # ---------------------------------------------------------------------------
 
 def load_icetex(path: Path | str | None = None) -> pd.DataFrame:
-    """Carga y normaliza Comportamiento_de_Cartera_y_Crédito (ICETEX)."""
+    """Carga y normaliza Comportamiento_de_Cartera_y_Crédito (ICETEX).
+
+    Transformaciones aplicadas:
+        - ``FECHA CORTE`` → ``datetime`` (formato ``'%Y %b %d %I:%M:%S %p'``).
+        - Saldos y cantidades parseados con :func:`parse_monto_icetex` /
+          :func:`parse_cantidad`; indicador con :func:`parse_porcentaje`.
+        - Columnas renombradas de MAYÚSCULAS con espacios a snake_case
+          (``saldo_total``, ``indicador_cartera_vencida``, ...).
+
+    Args:
+        path: Ruta al CSV crudo; por defecto el de ``data/raw/``.
+
+    Returns:
+        pandas.DataFrame: DataFrame limpio con columnas normalizadas.
+    """
     path = Path(path) if path else RAW / "Comportamiento_de_Cartera_y_Crédito._20260914.csv"
     df = pd.read_csv(path)
 
@@ -109,6 +172,8 @@ def load_icetex(path: Path | str | None = None) -> pd.DataFrame:
 
 
 # Nombres limpios para las 34 columnas del SFC (por posición, evita problemas de encoding)
+# Estructura: entidad/producto/renglón + saldos (total, vigente, vencida por rangos
+# de meses) + clientes en mora + calificación de riesgo A–E (clientes y saldo).
 SFC_COLUMNS = [
     "tipo_entidad", "codigo_entidad", "entidad", "fecha_corte", "unicap", "producto",
     "renglon", "desc_renglon",
@@ -126,6 +191,7 @@ SFC_COLUMNS = [
 ]
 
 SFC_MONTO_COLS = {
+    # Columnas monetarias del SFC: se parsean con parse_monto_sfc (punto=miles).
     "saldo_total_cartera", "saldo_vigente",
     "vencida_1_2_meses", "vencida_2_3_meses", "vencida_1_3_meses",
     "vencida_3_4_meses", "vencida_mas_4_meses", "vencida_3_6_meses", "vencida_mas_6_meses",
@@ -135,6 +201,7 @@ SFC_MONTO_COLS = {
 }
 
 SFC_CLIENTE_COLS = [
+    # Columnas de conteo de clientes: se parsean con parse_cantidad (coma=miles).
     "clientes_mora_mas_30",
     "riesgo_A_clientes", "riesgo_B_clientes", "riesgo_C_clientes",
     "riesgo_D_clientes", "riesgo_E_clientes",
@@ -144,8 +211,21 @@ SFC_CLIENTE_COLS = [
 def load_sfc(path: Path | str | None = None) -> pd.DataFrame:
     """Carga y normaliza Distribución_de_cartera_por_producto (Superfinanciera).
 
+    Transformaciones aplicadas:
+        - Lectura sin cabecera (``header=None``) y asignación de nombres
+          limpios por posición desde :data:`SFC_COLUMNS`.
+        - ``fecha_corte`` → ``datetime`` (formato ``'%d/%m/%Y'``).
+        - Montos con :func:`parse_monto_sfc` y conteos de clientes con
+          :func:`parse_cantidad`.
+
     Nota: el archivo real usa separador coma y encoding UTF-8 (AGENTS.md
     indicaba ';' y latin-1 pero el archivo descargado no los usa).
+
+    Args:
+        path: Ruta al CSV crudo; por defecto el de ``data/raw/``.
+
+    Returns:
+        pandas.DataFrame: DataFrame limpio (~110k filas × 34 columnas).
     """
     path = Path(path) if path else RAW / "Distribución_de_cartera_por_producto_20260914.csv"
     df = pd.read_csv(path, sep=",", encoding="utf-8", low_memory=False, header=None, skiprows=1)
@@ -165,8 +245,18 @@ def load_sfc(path: Path | str | None = None) -> pd.DataFrame:
 def load_iefic_codebook(path: Path | str | None = None) -> pd.DataFrame:
     """Extrae el diccionario de variables del codebook DDI de la IEFIC (XML).
 
+    Recorre los nodos ``<var>`` del estándar DDI y extrae nombre (``name``),
+    etiqueta (``labl``), literal de pregunta (``qstnLit``) y tipo de
+    intervalo (``intrvl``).
+
     El XML define cada variable por archivo (F17=IEFIC_2017, F18=IEFIC_2018),
     por lo que se deduplica por nombre (331 variables únicas).
+
+    Args:
+        path: Ruta al XML crudo de BANREP; por defecto el de ``data/raw/``.
+
+    Returns:
+        pandas.DataFrame: Columnas ``name``, ``label``, ``question``, ``type``.
     """
     from lxml import etree
 
@@ -192,7 +282,18 @@ def load_iefic_codebook(path: Path | str | None = None) -> pd.DataFrame:
 
 
 def save_processed(df: pd.DataFrame, name: str) -> Path:
-    """Guarda un DataFrame limpio en data/processed/ (CSV UTF-8)."""
+    """Guarda un DataFrame limpio en ``data/processed/`` (CSV UTF-8 con BOM).
+
+    Crea el directorio de salida si no existe. Los archivos generados son
+    los que consumen ``app.py`` y ``exportar_agregados_dashboard.py``.
+
+    Args:
+        df: DataFrame ya limpio y normalizado.
+        name: Nombre del archivo destino (p. ej. ``"sfc_limpio.csv"``).
+
+    Returns:
+        Path: Ruta absoluta del archivo escrito.
+    """
     PROCESSED.mkdir(parents=True, exist_ok=True)
     out = PROCESSED / name
     df.to_csv(out, index=False, encoding="utf-8-sig")

@@ -1,5 +1,43 @@
 // Generado por src/utils/exportar_agregados_dashboard.py — NO editar a mano
+// ============================================================
+// datos_sistema.js — Agregados BI del sistema financiero colombiano
+// ------------------------------------------------------------
+// PROPÓSITO: fuente de datos "Sistema Real" que consume la pestaña
+// homónima de index.mejorado.html (serie, productos, calificación,
+// ICETEX e IEFIC). Se regenera ejecutando:
+//
+//     python src/utils/exportar_agregados_dashboard.py
+//
+// ADVERTENCIA: este archivo es AUTOGENERADO (JSON + constantes);
+// cualquier comentario manual se pierde al regenerarlo. La documen-
+// tación del esquema también vive en el README de esta carpeta y en
+// el docstring del script generador.
+//
+// Esquema de DATOS_SISTEMA:
+//   serieVencida : Array<{mes, total, bancos, noBancarias}>
+//       % de cartera vencida por corte mensual (últimos 24):
+//       total del sistema, bancos (tipo_entidad=1) y no bancarias.
+//   topProductos  : Array<{producto, saldoMilesM, pctVencida}>
+//       Top 8 productos por saldo en el último corte
+//       (saldoMilesM en miles de millones COP; % vencida del producto).
+//   calificacion  : Array<{letra, saldoMilesM, pct}>
+//       Saldos por calificación de riesgo A–E (último corte) y su
+//       participación porcentual sobre el total.
+//   icetexTop     : Array<{departamento, pctVencida}>
+//       Top 10 departamentos por indicador de cartera vencida ICETEX
+//       (último corte). OJO: valores escalados ×100 respecto al
+//       indicador original en % (2719.5 ≡ 27.2%).
+//   iefic         : {total, vars: Array<{n, l}>}
+//       Codebook IEFIC de BANREP: nº de variables únicas y pares
+//       nombre (n) / etiqueta recortada a 90 chars (l).
+//   meta          : {desde, hasta, filasSfc, generado}
+//       Rango de cortes (YYYY-MM), filas SFC procesadas y fecha de
+//       generación del archivo.
+//
+// Documentado: 2026-09-18
+// ============================================================
 const DATOS_SISTEMA = {
+ // --- 1) Serie mensual del % de cartera vencida (24 cortes) ---
  "serieVencida": [
   {
    "mes": "2024-07",
@@ -146,6 +184,7 @@ const DATOS_SISTEMA = {
    "noBancarias": 4.95
   }
  ],
+ // --- 2) Top 8 productos por saldo (último corte) ---
  "topProductos": [
   {
    "producto": "Libranza",
@@ -188,6 +227,7 @@ const DATOS_SISTEMA = {
    "pctVencida": 0.11
   }
  ],
+ // --- 3) Saldos por calificación de riesgo A–E (último corte) ---
  "calificacion": [
   {
    "letra": "A",
@@ -215,6 +255,7 @@ const DATOS_SISTEMA = {
    "pct": 2.0
   }
  ],
+ // --- 4) ICETEX: top departamentos por indicador de cartera vencida ---
  "icetexTop": [
   {
    "departamento": "Vichada",
@@ -257,6 +298,7 @@ const DATOS_SISTEMA = {
    "pctVencida": 1716.0
   }
  ],
+ // --- 5) IEFIC: codebook de variables de BANREP (331 únicas) ---
  "iefic": {
   "total": 331,
   "vars": [
@@ -1586,6 +1628,7 @@ const DATOS_SISTEMA = {
    }
   ]
  },
+ // --- 6) Metadatos de la exportación (rango, filas, fecha) ---
  "meta": {
   "desde": "2024-07",
   "hasta": "2026-06",
