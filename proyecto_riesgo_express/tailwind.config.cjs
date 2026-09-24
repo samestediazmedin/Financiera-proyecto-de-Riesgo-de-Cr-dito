@@ -1,7 +1,7 @@
-﻿/** Config Tailwind para compilacion estatica local (espejo del config inline). */
+/** Config Tailwind para compilacion estatica local (espejo del config inline). */
 module.exports = {
   darkMode: 'class',
-  content: ["./login.html", "./index.mejorado.html"],
+  content: ["./login.html", "./index.html", "./index.mejorado.html"],
   theme: {
     extend: {
       fontFamily: {

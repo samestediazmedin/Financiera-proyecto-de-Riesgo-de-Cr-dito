@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- ============================================================
      index.html — Dashboard de Riesgo Financiero (versión v1)
      ------------------------------------------------------------
@@ -16,9 +16,9 @@
   <script src="auth.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Financiero — Análisis de Riesgo de Crédito</title>
-  <!-- Dependencias: Tailwind CSS y Chart.js vía CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Dependencias locales (100% offline): Tailwind compilado + Chart.js en vendor/ -->
+  <link rel="stylesheet" href="vendor/tailwind.css">
+  <script src="vendor/chart.umd.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans p-6">
 
@@ -60,7 +60,7 @@
 
       <!-- Doughnut: Distribución de riesgo -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md flex flex-col justify-center items-center">
-        <h3 class="text-md font-semibold text-slate-300 mb-4 w-full text-left">Distribución del Riesgo</h3>
+        <h3 class="text-base font-semibold text-slate-300 mb-4 w-full text-left">Distribución del Riesgo</h3>
         <div class="w-56 h-56">
           <canvas id="chartRiesgo"></canvas>
         </div>
@@ -68,7 +68,7 @@
 
       <!-- Bar: Monto expuesto por cliente -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
-        <h3 class="text-md font-semibold text-slate-300 mb-4">Monto Expuesto por Cliente</h3>
+        <h3 class="text-base font-semibold text-slate-300 mb-4">Monto Expuesto por Cliente</h3>
         <div class="h-56">
           <canvas id="chartMonto"></canvas>
         </div>
@@ -76,7 +76,7 @@
 
       <!-- Bubble: Score vs Días de mora -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md">
-        <h3 class="text-md font-semibold text-slate-300 mb-4">Score vs Días de Mora (tamaño = monto)</h3>
+        <h3 class="text-base font-semibold text-slate-300 mb-4">Score vs Días de Mora (tamaño = monto)</h3>
         <div class="h-56">
           <canvas id="chartBubble"></canvas>
         </div>
@@ -96,7 +96,7 @@
 
     <!-- ============ TABLA CONSOLIDADA ============ -->
     <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md overflow-x-auto">
-      <h3 class="text-md font-semibold text-slate-300 mb-4">Consolidado de Cartera (3 bases unificadas)</h3>
+      <h3 class="text-base font-semibold text-slate-300 mb-4">Consolidado de Cartera (3 bases unificadas)</h3>
       <table class="w-full text-left border-collapse text-sm min-w-[900px]">
         <thead>
           <tr class="text-slate-400 border-b border-slate-700">
